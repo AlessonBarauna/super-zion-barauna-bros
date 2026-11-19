@@ -63,8 +63,7 @@ Windows (Tauri): precisa de Rust e das dependências do Tauri numa máquina Wind
 **Limitações da Fase 6:** os cenários dos mundos 2–8 reutilizam a arte da Vila das Oliveiras com variação de cor; as fases 1-2 a 8-3
 são geradas (jogáveis e validadas, mas sem o desenho manual fino da 1-1); a música é provisória e nunca foi ouvida.
 
-**Ainda não existe:** demais poderes, arte final em sprites HD, desenho manual das fases 1-2 a 8-3, cenários próprios dos mundos 2–8, teste humano.
-aplicativo Windows (Tauri). Botões do menu só existem quando a função existe.
+**Ainda não existe:** demais poderes, arte final em sprites HD, desenho manual das fases 1-2 a 8-3, cenários próprios dos mundos 2–8, teste humano e o aplicativo Windows compilado. Botões do menu só existem quando a função existe.
 
 ## Arte e áudio (provisório documentado)
 
