@@ -29,6 +29,7 @@ export const SCENE_KEYS = {
   Game: 'GameScene',
   UI: 'UIScene',
   Pause: 'PauseScene',
+  WorldSelect: 'WorldSelectScene',
 } as const;
 
 export const DEPTH = {

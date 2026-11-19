@@ -4,7 +4,7 @@
  * entra por uma interface mínima, de modo que os testes rodam em Node.
  */
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const SAVE_KEY = 'szbb.save';
 export const MAX_WORLDS = 8;
 
@@ -15,6 +15,8 @@ export interface SaveData {
   unlockedWorlds: number;
   completedLevels: string[];
   bestScores: Record<string, number>;
+  /** Estrelas por fase (0 a 3). */
+  stars: Record<string, number>;
   totalCoins: number;
   mode: GameMode;
   settings: { muted: boolean };
@@ -28,7 +30,15 @@ export interface StorageLike {
 export type Migration = (data: Record<string, unknown>) => Record<string, unknown>;
 
 /** Migrações de versões anteriores: a chave N converte um save da versão N para N+1. */
-export const MIGRATIONS: Record<number, Migration> = {};
+export const MIGRATIONS: Record<number, Migration> = {
+  // v1 -> v2: estrelas por fase. Quem já concluiu uma fase ganha a estrela de conclusão.
+  1: (data) => {
+    const completed = Array.isArray(data.completedLevels) ? data.completedLevels : [];
+    const stars: Record<string, number> = {};
+    for (const id of completed) if (typeof id === 'string') stars[id] = 1;
+    return { ...data, stars };
+  },
+};
 
 export function defaultSave(): SaveData {
   return {
@@ -36,6 +46,7 @@ export function defaultSave(): SaveData {
     unlockedWorlds: 1,
     completedLevels: [],
     bestScores: {},
+    stars: {},
     totalCoins: 0,
     mode: 'solo',
     settings: { muted: false },
@@ -68,12 +79,22 @@ export function sanitizeSave(raw: unknown): SaveData {
     }
   }
 
+  const stars: Record<string, number> = {};
+  if (isRecord(raw.stars)) {
+    for (const [level, value] of Object.entries(raw.stars)) {
+      if (LEVEL_ID.test(level) && typeof value === 'number' && Number.isFinite(value)) {
+        stars[level] = Math.min(3, Math.max(0, Math.floor(value)));
+      }
+    }
+  }
+
   const settings = isRecord(raw.settings) ? raw.settings : {};
   return {
     version: SAVE_VERSION,
     unlockedWorlds: Math.max(1, nonNegInt(raw.unlockedWorlds, 1, MAX_WORLDS)),
     completedLevels: completed,
     bestScores: scores,
+    stars,
     totalCoins: nonNegInt(raw.totalCoins, 0),
     mode: raw.mode === 'coop' ? 'coop' : 'solo',
     settings: { muted: settings.muted === true },
@@ -162,10 +183,11 @@ export class SaveManager {
   }
 
   /** Registra a conclusão de uma fase: melhor pontuação, moedas e desbloqueio do próximo mundo. */
-  recordLevelComplete(levelId: string, score: number, coinsCollected: number): void {
+  recordLevelComplete(levelId: string, score: number, coinsCollected: number, stars = 1): void {
     if (!LEVEL_ID.test(levelId)) return;
     if (!this.data.completedLevels.includes(levelId)) this.data.completedLevels.push(levelId);
     this.data.bestScores[levelId] = Math.max(this.data.bestScores[levelId] ?? 0, Math.max(0, Math.floor(score)));
+    this.data.stars[levelId] = Math.min(3, Math.max(this.data.stars[levelId] ?? 0, Math.floor(stars)));
     this.data.totalCoins += Math.max(0, Math.floor(coinsCollected));
     const world = worldOf(levelId);
     const worldDone = [1, 2, 3, 4].every((n) => this.data.completedLevels.includes(`${world}-${n}`));

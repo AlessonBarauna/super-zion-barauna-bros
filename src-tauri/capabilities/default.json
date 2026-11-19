@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissões mínimas da janela principal: o jogo não precisa de acesso ao sistema de arquivos nem à rede.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

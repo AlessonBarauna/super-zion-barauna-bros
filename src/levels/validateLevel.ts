@@ -1,6 +1,6 @@
 import { platformMaxSpeed, platformSweptCells } from '../systems/movingPlatform';
 import { TileGrid } from './TileGrid';
-import type { LevelData, TilePoint } from './types';
+import { FLYING_ENEMIES, type LevelData, type TilePoint } from './types';
 
 export interface ValidationOptions {
   /** Maior vão (em blocos) que o jogador consegue atravessar. */
@@ -34,7 +34,9 @@ export function validateLevel(level: LevelData, opts: ValidationOptions): string
   checkPoints('spawn', [level.spawn], true);
   checkPoints('goal', [level.goal], true);
   checkPoints('checkpoint', level.checkpoints, true);
-  checkPoints('enemy', level.enemies, true);
+  checkPoints('enemy', level.enemies.filter((e) => !FLYING_ENEMIES.includes(e.kind)), true);
+  checkPoints('enemy-voador', level.enemies.filter((e) => FLYING_ENEMIES.includes(e.kind)), false);
+  if (level.boss) checkPoints('boss', [level.boss], true);
   checkPoints('spike', level.spikes, true);
   checkPoints('coin', level.coins, false);
 

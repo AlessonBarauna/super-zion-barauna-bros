@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { mapPad } from './gamepadMap';
 import type { PlayerControls } from './movement';
 
 /** Fonte de comandos de um jogador. A arquitetura permite plugar teclado, gamepad ou IA. */
@@ -71,6 +72,49 @@ export class KeyboardControls implements ControlSource {
       jumpPressed: this.jump.some((k) => Phaser.Input.Keyboard.JustDown(k)),
       jumpHeld: this.jump.some((k) => k.isDown),
       powerPressed: this.power.some((k) => Phaser.Input.Keyboard.JustDown(k)),
+    };
+  }
+}
+
+/** Lê um controle físico (índice do navegador). Sem controle conectado, não faz nada. */
+export class GamepadControls implements ControlSource {
+  private prevJump = false;
+  private prevPower = false;
+
+  constructor(private readonly index: number) {}
+
+  get connected(): boolean {
+    return typeof navigator !== 'undefined' && !!navigator.getGamepads?.()[this.index];
+  }
+
+  poll(): PlayerControls {
+    const pad = typeof navigator !== 'undefined' ? navigator.getGamepads?.()[this.index] : null;
+    if (!pad) {
+      this.prevJump = this.prevPower = false;
+      return { moveX: 0, run: false, jumpPressed: false, jumpHeld: false, powerPressed: false };
+    }
+    const cmd = mapPad({ axes: pad.axes, buttons: pad.buttons.map((b) => b.pressed) });
+    const jumpPressed = cmd.jump && !this.prevJump;
+    const powerPressed = cmd.power && !this.prevPower;
+    this.prevJump = cmd.jump;
+    this.prevPower = cmd.power;
+    return { moveX: cmd.moveX, run: cmd.run, jumpPressed, jumpHeld: cmd.jump, powerPressed };
+  }
+}
+
+/** Soma teclado e controle: qualquer um dos dois comanda o personagem. */
+export class CombinedControls implements ControlSource {
+  constructor(private readonly sources: ControlSource[]) {}
+
+  poll(): PlayerControls {
+    const polled = this.sources.map((s) => s.poll());
+    const moveSum = polled.reduce((a, p) => a + p.moveX, 0);
+    return {
+      moveX: moveSum > 0 ? 1 : moveSum < 0 ? -1 : 0,
+      run: polled.some((p) => p.run),
+      jumpPressed: polled.some((p) => p.jumpPressed),
+      jumpHeld: polled.some((p) => p.jumpHeld),
+      powerPressed: polled.some((p) => p.powerPressed),
     };
   }
 }

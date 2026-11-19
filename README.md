@@ -25,7 +25,7 @@ npm run preview    # serve o build
 
 Jogador 2 (Bara, cooperativo): `J` `L` mover · `K` correr · `I` pular · `U` poder. No menu, `1` inicia o modo individual, `2` o cooperativo e `Enter` repete o último modo usado.
 
-## Estado atual (v0.1.0 — Fases 1 a 5 do roadmap)
+## Estado atual (v0.1.0 — Fases 1 a 6 do roadmap)
 
 Jogável: menu → fase **1-1 Vila das Oliveiras** (130 blocos de largura) com Zion, câmera lateral com parallax,
 pulo variável / coyote time / jump buffer, moedas (100 = +1 vida), blocos surpresa e tijolos, espinhos, abismos,
@@ -46,7 +46,24 @@ blocos de pedra e surpresa não quebram) e **plataformas móveis** de passagem �
 definidas nos dados da fase (`movingPlatforms`: eixo, alcance, período, fase). A fase 1-1 ganhou um elevador e uma ponte móvel sobre
 um abismo de 9 blocos; o validador de fases só aceita um vão maior que o salto se uma ponte móvel o cobrir de borda a borda.
 
-**Ainda não existe:** demais poderes, mais inimigos, chefões, mundos 2–8, música, gamepad, seleção de mundos,
+Fase 6: **mapa de mundos** (8 mundos × 4 fases, bloqueios, estrelas ★ por fase: concluir, 80% das moedas, 40% do tempo sobrando),
+**32 fases** (1-1 feita à mão; as outras são geradas por `src/levels/generator.ts` a partir de trechos validados e passam pelo mesmo
+validador), **chefões** de arena (um por mundo, ciclo andar → preparar → investir → atordoar; pisão só machuca atordoado, fogo machuca
+quase sempre; a meta só aparece quando ele cai), **novos inimigos** (Corvo Umbral voador que mergulha; Ouriço de Cristal que não pode
+ser pisado), **música procedural** por mundo (Web Audio), **controle (gamepad)** e configuração **Tauri** para Windows (`src-tauri/`).
+Salvamento passou à versão 2 (estrelas) com migração automática do v1.
+
+Atalho de desenvolvimento: `?level=3-2` na URL faz os botões do menu abrirem direto aquela fase.
+
+Controle: analógico/direcional move, A pula, X ou gatilhos correm, B/Y poder. P1 usa o controle 1 e P2 o controle 2.
+
+Windows (Tauri): precisa de Rust e das dependências do Tauri numa máquina Windows; depois `npm i -D @tauri-apps/cli` e `npx tauri build`
+(gera instalador NSIS/MSI). **Não foi compilado nesta etapa** (o ambiente de desenvolvimento é Linux sem as bibliotecas GTK).
+
+**Limitações da Fase 6:** os cenários dos mundos 2–8 reutilizam a arte da Vila das Oliveiras com variação de cor; as fases 1-2 a 8-3
+são geradas (jogáveis e validadas, mas sem o desenho manual fino da 1-1); a música é provisória e nunca foi ouvida.
+
+**Ainda não existe:** demais poderes, arte final em sprites HD, desenho manual das fases 1-2 a 8-3, cenários próprios dos mundos 2–8, teste humano.
 aplicativo Windows (Tauri). Botões do menu só existem quando a função existe.
 
 ## Arte e áudio (provisório documentado)

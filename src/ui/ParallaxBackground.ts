@@ -25,6 +25,22 @@ export class ParallaxBackground {
     );
   }
 
+  /**
+   * Variação provisória de paleta por mundo: uma camada multiplicadora sobre o fundo
+   * (setTint não funciona no renderizador Canvas; o blend MULTIPLY funciona nos dois).
+   */
+  setTint(color: number): void {
+    if (color === 0xffffff) return;
+    const scene = this.sprites[0]?.scene;
+    if (!scene) return;
+    scene.add
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, color)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.background + this.layers.length)
+      .setBlendMode(Phaser.BlendModes.MULTIPLY);
+  }
+
   update(scrollX: number, timeMs: number): void {
     this.layers.forEach((layer, i) => {
       const sprite = this.sprites[i];

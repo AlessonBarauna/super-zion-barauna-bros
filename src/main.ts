@@ -6,6 +6,7 @@ import { GameScene } from './scenes/GameScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PauseScene } from './scenes/PauseScene';
 import { UIScene } from './scenes/UIScene';
+import { WorldSelectScene } from './scenes/WorldSelectScene';
 import { ZION_PARAMS } from './systems/movement';
 
 const forceCanvas = new URLSearchParams(window.location.search).get('renderer') === 'canvas';
@@ -25,7 +26,7 @@ const game = new Phaser.Game({
     default: 'arcade',
     arcade: { gravity: { x: 0, y: ZION_PARAMS.gravity }, debug: false },
   },
-  scene: [BootScene, MenuScene, GameScene, UIScene, PauseScene],
+  scene: [BootScene, MenuScene, WorldSelectScene, GameScene, UIScene, PauseScene],
 });
 
 // Gancho para validação automatizada (Playwright) e depuração.

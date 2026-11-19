@@ -97,7 +97,7 @@ with sync_playwright() as pw:
     pg.screenshot(path=f'{SHOTS}/pw_win.png')
     saved = json.loads(ev(pg, "localStorage.getItem('szbb.save')") or 'null')
     check('fase concluída é gravada (versão, fase, pontuação, moedas)',
-          saved is not None and saved['version'] == 1 and saved['completedLevels'] == ['1-1'] and saved['bestScores']['1-1'] >= 1000 and saved['totalCoins'] == 7,
+          saved is not None and saved['version'] == 2 and 1 <= saved['stars']['1-1'] <= 3 and saved['completedLevels'] == ['1-1'] and saved['bestScores']['1-1'] >= 1000 and saved['totalCoins'] == 7,
           json.dumps(saved))
 
     # --- Som persistido (M no jogo)

@@ -39,13 +39,22 @@ export interface MovingPlatformSpec extends PlatformSpec {
   phase?: number;
 }
 
-export type EnemyKind = 'cogumelo-sombrio';
+export type EnemyKind = 'cogumelo-sombrio' | 'corvo-umbral' | 'ourico-cristal';
+
+/** Inimigos que voam: não precisam de chão embaixo. */
+export const FLYING_ENEMIES: readonly EnemyKind[] = ['corvo-umbral'];
+
+export type BossKind = 'gronk' | 'kragor' | 'sakhur' | 'frostak' | 'vyrak' | 'mechazord' | 'auron' | 'umbrax';
+
+export interface BossSpec extends TilePoint {
+  kind: BossKind;
+}
 
 export interface EnemySpec extends TilePoint {
   kind: EnemyKind;
 }
 
-export type WorldTheme = 'oliveiras';
+export type WorldTheme = 'oliveiras' | 'cavernas' | 'deserto' | 'montanhas' | 'selva' | 'engrenagens' | 'nuvens' | 'abismo';
 
 /**
  * Definição de fase orientada a dados. Criar uma fase nova deve exigir apenas
@@ -72,4 +81,6 @@ export interface LevelData {
   spikes: TilePoint[];
   checkpoints: TilePoint[];
   goal: TilePoint;
+  /** Arena de chefão: a meta só aparece quando o chefão é derrotado. */
+  boss?: BossSpec;
 }

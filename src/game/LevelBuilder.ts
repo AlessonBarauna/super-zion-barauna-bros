@@ -22,6 +22,8 @@ export interface BuiltLevel {
   checkpoints: CheckpointObject[];
   goalZone: Phaser.GameObjects.Zone;
   banner: Phaser.GameObjects.Image;
+  /** Mastro e bandeira (escondidos até o fim, nas arenas de chefão). */
+  goalVisuals: Phaser.GameObjects.Image[];
   bannerRestY: number;
   bannerLowY: number;
   spawn: { x: number; bottom: number };
@@ -126,6 +128,7 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
     checkpoints,
     goalZone,
     banner,
+    goalVisuals: [pole, banner],
     bannerRestY,
     bannerLowY,
     spawn: { x: center(level.spawn.x), bottom: (level.spawn.y + 1) * TILE },
