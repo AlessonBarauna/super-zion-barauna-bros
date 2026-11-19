@@ -94,6 +94,11 @@ export const NEUTRAL_INPUT: MovementInput = {
   jumpHeld: false,
 };
 
+/** Comandos completos de um jogador: movimento + botão de poder (apertado neste quadro). */
+export interface PlayerControls extends MovementInput {
+  powerPressed: boolean;
+}
+
 export function createMovementState(): MovementState {
   return {
     vx: 0,
@@ -198,7 +203,8 @@ export type PlayerAnimation =
   | 'land'
   | 'hurt'
   | 'dead'
-  | 'victory';
+  | 'victory'
+  | 'attack';
 
 export interface AnimationContext {
   onGround: boolean;
@@ -208,12 +214,14 @@ export interface AnimationContext {
   hurt: boolean;
   dead: boolean;
   victory: boolean;
+  attacking: boolean;
 }
 
 export function deriveAnimation(c: AnimationContext, p: MovementParams): PlayerAnimation {
   if (c.dead) return 'dead';
   if (c.victory) return 'victory';
   if (c.hurt) return 'hurt';
+  if (c.attacking) return 'attack';
   if (!c.onGround) return c.vy < 0 ? 'jump' : 'fall';
   if (c.landTimer > 0) return 'land';
   const speed = Math.abs(c.vx);

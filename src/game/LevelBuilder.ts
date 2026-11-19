@@ -46,6 +46,7 @@ function tileTexture(kind: CellKind, col: number, row: number, grid: TileGrid): 
 /** Constrói a fase (visual + corpos físicos) a partir dos dados. */
 export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid): BuiltLevel {
   const solids = scene.physics.add.staticGroup();
+  const rewards = new Map(level.blocks.filter((b) => b.reward).map((b) => [TileGrid.key(b.x, b.y), b.reward]));
 
   for (const [key, kind] of grid.entries()) {
     const [colS, rowS] = key.split(',');
@@ -60,6 +61,7 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
     const tile = solids.create(center(col), center(row), texture) as Phaser.Physics.Arcade.Sprite;
     tile.setDepth(DEPTH.tiles);
     tile.setData('kind', kind);
+    if (kind === 'surprise') tile.setData('reward', rewards.get(key) ?? 'coin');
   }
 
   buildPitFill(scene, level);

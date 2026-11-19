@@ -235,6 +235,55 @@ function heartIcon(ctx: Ctx, full: boolean): void {
   }
 }
 
+/** Flor de Fogo: pétalas em chama sobre caule verde. */
+function fireFlower(ctx: Ctx): void {
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(18, 40);
+  ctx.quadraticCurveTo(17, 30, 18, 22);
+  ctx.stroke();
+  ctx.strokeStyle = '#3BA848';
+  ctx.lineWidth = 3.4;
+  ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(18 + side * 7, 32, 7, 3.4, side * -0.5, 0, Math.PI * 2);
+    fillStroke(ctx, '#3BA848', 2);
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI * 2 * i) / 6 - Math.PI / 2;
+    const px = 18 + Math.cos(a) * 9;
+    const py = 15 + Math.sin(a) * 9;
+    ctx.beginPath();
+    ctx.moveTo(18, 15);
+    ctx.quadraticCurveTo(px + Math.cos(a + 1.2) * 7, py + Math.sin(a + 1.2) * 7, px + Math.cos(a) * 5, py + Math.sin(a) * 5);
+    ctx.quadraticCurveTo(px + Math.cos(a - 1.2) * 7, py + Math.sin(a - 1.2) * 7, 18, 15);
+    fillStroke(ctx, i % 2 ? PALETTE.laranja : '#E8453C', 2.2);
+  }
+  circle(ctx, 18, 15, 6.4);
+  fillStroke(ctx, PALETTE.douradoAurora, 2.2);
+  circle(ctx, 16.4, 13.6, 2);
+  ctx.fillStyle = '#FFF7C2';
+  ctx.fill();
+}
+
+function fireball(ctx: Ctx): void {
+  const g = ctx.createRadialGradient(8, 8, 1, 8, 8, 8);
+  g.addColorStop(0, '#FFF7C2');
+  g.addColorStop(0.45, PALETTE.douradoAurora);
+  g.addColorStop(1, PALETTE.laranja);
+  ctx.beginPath();
+  ctx.moveTo(1, 13);
+  ctx.quadraticCurveTo(0, 5, 6, 1);
+  ctx.quadraticCurveTo(7, 5, 10, 6);
+  ctx.quadraticCurveTo(16, 6, 15, 12);
+  ctx.quadraticCurveTo(12, 17, 6, 16);
+  ctx.quadraticCurveTo(2, 16, 1, 13);
+  ctx.closePath();
+  fillStroke(ctx, g, 1.8, '#B8431A');
+}
+
 function flagPole(ctx: Ctx): void {
   roundRectPath(ctx, 6, 14, 8, 176, 4);
   fillStroke(ctx, '#F4F0DC', 2.4);
@@ -444,6 +493,8 @@ export function createWorldTextures(scene: Phaser.Scene): void {
   canvasTexture(scene, 'heart-full', 32, 30, (c) => heartIcon(c, true));
   canvasTexture(scene, 'heart-empty', 32, 30, (c) => heartIcon(c, false));
 
+  canvasTexture(scene, 'item-flower', 36, 42, fireFlower);
+  canvasTexture(scene, 'fireball', 18, 18, fireball);
   canvasTexture(scene, 'flag-pole', 20, 196, flagPole);
   canvasTexture(scene, 'flag-banner', 58, 44, flagBanner);
   canvasTexture(scene, 'checkpoint-off', 32, 66, (c) => checkpoint(c, false));

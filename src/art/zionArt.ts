@@ -154,6 +154,21 @@ export const ZION_ANIMS: Record<
         mouth: 'grin',
       }),
   },
+  attack: {
+    frames: 1,
+    frameRate: 1,
+    repeat: 0,
+    pose: () =>
+      pose({
+        legF: { dx: 7, dy: 0 },
+        legB: { dx: -7, dy: 0 },
+        armF: { dx: 14, dy: -9 },
+        armB: { dx: -5, dy: 2 },
+        lean: 2,
+        eyes: 'open',
+        mouth: 'open',
+      }),
+  },
   dead: {
     frames: 1,
     frameRate: 1,

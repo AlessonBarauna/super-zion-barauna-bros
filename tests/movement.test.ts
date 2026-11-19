@@ -131,7 +131,7 @@ describe('pulo', () => {
 });
 
 describe('animação derivada', () => {
-  const base = { onGround: true, vx: 0, vy: 0, landTimer: 0, hurt: false, dead: false, victory: false };
+  const base = { onGround: true, vx: 0, vy: 0, landTimer: 0, hurt: false, dead: false, victory: false, attacking: false };
   it('escolhe o estado conforme a física', () => {
     expect(deriveAnimation(base, P)).toBe('idle');
     expect(deriveAnimation({ ...base, vx: P.walkSpeed }, P)).toBe('walk');
@@ -139,6 +139,8 @@ describe('animação derivada', () => {
     expect(deriveAnimation({ ...base, onGround: false, vy: -100 }, P)).toBe('jump');
     expect(deriveAnimation({ ...base, onGround: false, vy: 100 }, P)).toBe('fall');
     expect(deriveAnimation({ ...base, landTimer: 0.1 }, P)).toBe('land');
+    expect(deriveAnimation({ ...base, attacking: true, vx: P.runSpeed }, P)).toBe('attack');
+    expect(deriveAnimation({ ...base, attacking: true, hurt: true }, P)).toBe('hurt');
   });
   it('morte, vitória e dano têm prioridade', () => {
     expect(deriveAnimation({ ...base, dead: true, hurt: true }, P)).toBe('dead');

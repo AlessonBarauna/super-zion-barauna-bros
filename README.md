@@ -25,14 +25,18 @@ npm run preview    # serve o build
 
 Jogador 2 (Bara, cooperativo — ainda não implementado): `J` `L` `I` `K`. O perfil já existe em `src/systems/input.ts`.
 
-## Estado atual (v0.1.0 — Fase 1 e 2 do roadmap)
+## Estado atual (v0.1.0 — Fases 1 a 3 do roadmap)
 
 Jogável: menu → fase **1-1 Vila das Oliveiras** (130 blocos de largura) com Zion, câmera lateral com parallax,
 pulo variável / coyote time / jump buffer, moedas (100 = +1 vida), blocos surpresa e tijolos, espinhos, abismos,
 Cogumelo Sombrio (patrulha e perseguição), 3 corações com invulnerabilidade e knockback, 5 vidas, checkpoints, tempo,
 pausa, game over e tela de fase concluída.
 
-**Ainda não existe:** Bara e cooperativo, poderes, chefões, salvamento, mundos 2–8, música, gamepad, seleção de mundos,
+Fase 3: **Flor de Fogo** (bloco amarelo solta o item; `X` dispara bolas que quicam, máx. 2 ao mesmo tempo, derrotam inimigos;
+sofrer dano perde o poder), item de coração e **salvamento** em `localStorage` (versionado, com migração, cópia do
+arquivo corrompido, fases concluídas, recordes, moedas e preferência de som; o menu mostra o progresso).
+
+**Ainda não existe:** Bara e cooperativo, demais poderes, chefões, mundos 2–8, música, gamepad, seleção de mundos,
 aplicativo Windows (Tauri). Botões do menu só existem quando a função existe.
 
 ## Arte e áudio (provisório documentado)

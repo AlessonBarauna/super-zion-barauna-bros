@@ -39,6 +39,7 @@ export function validateLevel(level: LevelData, opts: ValidationOptions): string
 
   level.blocks.forEach((b, i) => {
     if (!inBounds(b)) errors.push(`block[${i}]@${b.x},${b.y}: fora dos limites`);
+    if (b.reward && b.kind !== 'surprise') errors.push(`block[${i}]@${b.x},${b.y}: só blocos surpresa têm recompensa`);
   });
   level.platforms.forEach((p, i) => {
     if (!inBounds(p) || p.x + p.w > level.widthTiles || p.w < 1) {

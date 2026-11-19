@@ -11,6 +11,7 @@ export interface HudSnapshot {
   timeLeft: number;
   levelId: string;
   levelName: string;
+  power: string | null;
 }
 
 export const HUD_EVENT = 'hud-update';
@@ -32,6 +33,7 @@ export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
   private hearts: Phaser.GameObjects.Image[] = [];
+  private powerIcon!: Phaser.GameObjects.Image;
 
   constructor() {
     super(SCENE_KEYS.UI);
@@ -43,6 +45,7 @@ export class UIScene extends Phaser.Scene {
     panel.fillRoundedRect(14, 12, 290, 112, 22);
     panel.fillRoundedRect(GAME_WIDTH / 2 - 170, 12, 340, 62, 22);
     panel.fillRoundedRect(GAME_WIDTH - 224, 12, 210, 62, 22);
+    panel.fillRoundedRect(GAME_WIDTH / 2 - 36, 82, 72, 62, 18);
 
     this.add.image(46, 44, 'zion-idle-0').setScale(0.52).setDepth(DEPTH.hud);
     this.livesText = this.add.text(82, 25, '×5', textStyle(34)).setDepth(DEPTH.hud);
@@ -58,6 +61,9 @@ export class UIScene extends Phaser.Scene {
 
     this.add.text(GAME_WIDTH - 119, 20, 'TEMPO', { ...textStyle(16), strokeThickness: 4 }).setOrigin(0.5, 0).setDepth(DEPTH.hud);
     this.timeText = this.add.text(GAME_WIDTH - 119, 38, '300', textStyle(34)).setOrigin(0.5, 0).setDepth(DEPTH.hud);
+
+    this.add.text(GAME_WIDTH / 2, 138, 'X', { ...textStyle(14), strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(DEPTH.hud);
+    this.powerIcon = this.add.image(GAME_WIDTH / 2, 110, 'item-flower').setScale(0.9).setDepth(DEPTH.hud).setVisible(false);
 
     const onHud = (h: HudSnapshot): void => this.render(h);
     const onIntro = (id: string, name: string): void => this.intro(id, name);
@@ -76,6 +82,7 @@ export class UIScene extends Phaser.Scene {
     this.scoreText.setText(String(h.score).padStart(6, '0'));
     this.timeText.setText(String(Math.max(0, Math.ceil(h.timeLeft))));
     this.timeText.setColor(h.timeLeft <= 30 ? '#FF8A7A' : PALETTE.creme);
+    this.powerIcon.setVisible(h.power === 'flor-de-fogo');
     this.hearts.forEach((heart, i) => {
       heart.setTexture(i < h.hp ? 'heart-full' : 'heart-empty');
       heart.setVisible(i < h.maxHp);

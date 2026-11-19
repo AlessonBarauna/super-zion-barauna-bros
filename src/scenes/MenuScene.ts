@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { OLIVEIRAS_LAYERS } from '../art/backgroundArt';
 import { GAME_HEIGHT, GAME_VERSION, GAME_WIDTH, PALETTE, SCENE_KEYS } from '../game/constants';
+import { saveManager } from '../game/saveStore';
 import { createButton, UI_FONT } from '../ui/Button';
 import { ParallaxBackground } from '../ui/ParallaxBackground';
 
@@ -65,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
       .text(
         cx,
         GAME_HEIGHT - 22,
-        '← → / A D mover   •   Shift correr   •   Espaço pular   •   Esc pausa   •   F tela cheia   •   M som   •   Enter: novo jogo',
+        '← → / A D mover   •   Shift correr   •   Espaço pular   •   X poder   •   Esc pausa   •   F tela cheia   •   M som   •   Enter: novo jogo',
         {
           fontFamily: UI_FONT,
           fontSize: '19px',
@@ -80,6 +81,33 @@ export class MenuScene extends Phaser.Scene {
       .text(GAME_WIDTH - 12, 10, `v${GAME_VERSION}`, { fontFamily: UI_FONT, fontSize: '16px', color: '#10202c' })
       .setOrigin(1, 0)
       .setDepth(6);
+
+    const save = saveManager.data;
+    const info: string[] = [];
+    if (save.completedLevels.length > 0) {
+      const best = Math.max(...Object.values(save.bestScores), 0);
+      info.push(`Fases concluídas: ${save.completedLevels.length}/32   •   Melhor pontuação: ${String(best).padStart(6, '0')}`);
+    }
+    if (saveManager.status === 'corrupt') info.push('O salvamento estava corrompido e foi reiniciado (uma cópia foi preservada).');
+    if (saveManager.status === 'newer') info.push('Salvamento de versão mais nova: o progresso não será sobrescrito.');
+    info.forEach((line, i) => {
+      this.add
+        .text(cx, 322 + i * 28, line, { fontFamily: UI_FONT, fontStyle: 'bold', fontSize: '21px', color: PALETTE.douradoAurora, stroke: PALETTE.contorno, strokeThickness: 5 })
+        .setOrigin(0.5)
+        .setDepth(6);
+    });
+    const soundLabel = this.add
+      .text(GAME_WIDTH - 14, GAME_HEIGHT - 70, '', { fontFamily: UI_FONT, fontStyle: 'bold', fontSize: '20px', color: PALETTE.creme, stroke: PALETTE.contorno, strokeThickness: 4 })
+      .setOrigin(1, 1)
+      .setDepth(6);
+    const refreshSound = (): void => {
+      soundLabel.setText(`Som: ${saveManager.data.settings.muted ? 'desligado' : 'ligado'} (M)`);
+    };
+    refreshSound();
+    this.input.keyboard?.on('keydown-M', () => {
+      saveManager.setMuted(!saveManager.data.settings.muted);
+      refreshSound();
+    });
 
     this.input.keyboard?.on('keydown-ENTER', start);
     this.input.keyboard?.on('keydown-F', () => this.scale.toggleFullscreen());

@@ -63,6 +63,25 @@ export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
     return true;
   }
 
+  /** Derrotado por fogo: gira para trás e cai para fora da tela. */
+  knockOut(dir: 1 | -1): void {
+    if (this.dead) return;
+    this.dead = true;
+    this.arcadeBody.setVelocity(0, 0);
+    this.arcadeBody.enable = false;
+    this.anims.stop();
+    this.setFlipY(true);
+    this.scene.tweens.add({ targets: this, x: this.x + dir * 150, angle: dir * 200, duration: 900 });
+    this.scene.tweens.chain({
+      targets: this,
+      tweens: [
+        { y: this.y - 80, duration: 220, ease: 'Quad.easeOut' },
+        { y: this.y + 700, duration: 800, ease: 'Quad.easeIn' },
+      ],
+      onComplete: () => this.destroy(),
+    });
+  }
+
   squash(): void {
     if (this.dead) return;
     this.dead = true;

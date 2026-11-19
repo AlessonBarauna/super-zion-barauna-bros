@@ -12,8 +12,12 @@ export interface GroundSegment {
 
 export type BlockKind = 'brick' | 'surprise' | 'stone';
 
+/** O que um bloco surpresa entrega (padrão: moeda). */
+export type BlockReward = 'coin' | 'flor-de-fogo' | 'heart';
+
 export interface BlockSpec extends TilePoint {
   kind: BlockKind;
+  reward?: BlockReward;
 }
 
 export interface PlatformSpec extends TilePoint {

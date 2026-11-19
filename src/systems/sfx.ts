@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-export type SfxName = 'jump' | 'coin' | 'stomp' | 'hurt' | 'bump' | 'checkpoint' | 'life' | 'win' | 'death' | 'land';
+export type SfxName = 'jump' | 'coin' | 'stomp' | 'hurt' | 'bump' | 'checkpoint' | 'powerup' | 'fire' | 'life' | 'win' | 'death' | 'land';
 
 interface Tone {
   from: number;
@@ -21,6 +21,13 @@ const SOUNDS: Record<SfxName, Tone[]> = {
   hurt: [{ from: 340, to: 90, dur: 0.32, type: 'sawtooth', vol: 0.5 }],
   bump: [{ from: 140, to: 90, dur: 0.1, type: 'sine', vol: 0.9 }],
   land: [{ from: 110, to: 60, dur: 0.07, type: 'sine', vol: 0.6 }],
+  fire: [{ from: 900, to: 260, dur: 0.12, type: 'sawtooth', vol: 0.35 }],
+  powerup: [
+    { from: 392, to: 392, dur: 0.07, type: 'square', vol: 0.4 },
+    { from: 523, to: 523, dur: 0.07, type: 'square', vol: 0.4, delay: 0.07 },
+    { from: 659, to: 659, dur: 0.07, type: 'square', vol: 0.4, delay: 0.14 },
+    { from: 784, to: 1175, dur: 0.22, type: 'square', vol: 0.4, delay: 0.21 },
+  ],
   checkpoint: [
     { from: 660, to: 660, dur: 0.1, type: 'triangle', vol: 0.6 },
     { from: 880, to: 880, dur: 0.1, type: 'triangle', vol: 0.6, delay: 0.1 },
