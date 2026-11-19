@@ -37,7 +37,7 @@ export class MenuScene extends Phaser.Scene {
     const t2 = this.add.text(cx, 214, 'BARAÚNA BROS.', titleStyle(70, '#7BE27F')).setOrigin(0.5).setDepth(5);
     this.tweens.add({ targets: [t1, t2], y: '+=8', duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.add
-      .text(cx, 280, 'Reino de Baraúna  •  Mundo 1: Campos de Baraúna', {
+      .text(cx, 280, 'Reino de Baraúna  •  8 mundos, 32 fases e 8 chefões', {
         fontFamily: UI_FONT,
         fontSize: '24px',
         color: PALETTE.creme,
@@ -57,7 +57,10 @@ export class MenuScene extends Phaser.Scene {
 
     const start = (mode: GameMode): void => {
       saveManager.setMode(mode);
-      this.scene.start(SCENE_KEYS.Game);
+      // `?level=1-1` entra direto na fase (atalho de desenvolvimento e dos testes automáticos).
+      const direct = new URLSearchParams(window.location.search).get('level');
+      if (direct) this.scene.start(SCENE_KEYS.Game, { levelId: direct });
+      else this.scene.start(SCENE_KEYS.WorldSelect);
     };
     createButton(this, cx, 410, '1 JOGADOR', () => start('solo')).setDepth(6);
     createButton(this, cx, 496, '2 JOGADORES', () => start('coop'), {

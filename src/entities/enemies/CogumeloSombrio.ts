@@ -1,26 +1,66 @@
 import Phaser from 'phaser';
+import { OURICO_BODY, OURICO_FRAME } from '../../art/creatureArt';
 import { COGUMELO_BODY, COGUMELO_FRAME } from '../../art/enemyArt';
 import { DEPTH, PX, TILE } from '../../game/constants';
 import type { TileGrid } from '../../levels/TileGrid';
+import type { EnemyKind } from '../../levels/types';
 import { stepWalker, type WalkerState } from '../../systems/walkerAI';
 
 const ACTIVATION_RANGE = 1100;
 
+export interface WalkerConfig {
+  kind: EnemyKind;
+  texture: string;
+  anim: string;
+  frame: { w: number; h: number };
+  body: { w: number; h: number; offsetX: number; offsetY: number };
+  /** Pode ser derrotado pisando? Espinhosos não podem. */
+  stompable: boolean;
+  /** Persegue o jogador ao vê-lo? */
+  chases: boolean;
+}
+
+const COGUMELO_CONFIG: WalkerConfig = {
+  kind: 'cogumelo-sombrio',
+  texture: 'cogumelo-walk-0',
+  anim: 'cogumelo-walk',
+  frame: COGUMELO_FRAME,
+  body: COGUMELO_BODY,
+  stompable: true,
+  chases: true,
+};
+
+export const OURICO_CONFIG: WalkerConfig = {
+  kind: 'ourico-cristal',
+  texture: 'ourico-0',
+  anim: 'ourico-walk',
+  frame: OURICO_FRAME,
+  body: OURICO_BODY,
+  stompable: false,
+  chases: false,
+};
+
 export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
   dead = false;
+  readonly kind: EnemyKind;
+  readonly stompable: boolean;
+  private readonly config: WalkerConfig;
   private ai: WalkerState = { dir: -1, mode: 'patrol' };
 
-  constructor(scene: Phaser.Scene, x: number, bottomY: number) {
-    super(scene, x, 0, 'cogumelo-walk-0');
+  constructor(scene: Phaser.Scene, x: number, bottomY: number, config: WalkerConfig = COGUMELO_CONFIG) {
+    super(scene, x, 0, config.texture);
+    this.config = config;
+    this.kind = config.kind;
+    this.stompable = config.stompable;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setDepth(DEPTH.enemies);
     const body = this.arcadeBody;
-    body.setSize(COGUMELO_BODY.w * PX, COGUMELO_BODY.h * PX, false);
-    body.setOffset(COGUMELO_BODY.offsetX * PX, COGUMELO_BODY.offsetY * PX);
-    const centerToBodyBottom = body.offset.y + body.height - (COGUMELO_FRAME.h * PX) / 2;
+    body.setSize(config.body.w * PX, config.body.h * PX, false);
+    body.setOffset(config.body.offsetX * PX, config.body.offsetY * PX);
+    const centerToBodyBottom = body.offset.y + body.height - (config.frame.h * PX) / 2;
     body.reset(x, bottomY - centerToBodyBottom);
-    this.play('cogumelo-walk');
+    this.play(config.anim);
   }
 
   get arcadeBody(): Phaser.Physics.Arcade.Body {
@@ -54,7 +94,7 @@ export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
       canAdvance,
       playerDx: playerX - this.x,
       playerDy: playerY - this.y,
-      playerAlive,
+      playerAlive: playerAlive && this.config.chases,
     });
     this.ai = result.state;
     body.setVelocityX(this.ai.dir * result.speed);
@@ -83,7 +123,7 @@ export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
   }
 
   squash(): void {
-    if (this.dead) return;
+    if (this.dead || !this.stompable) return;
     this.dead = true;
     const body = this.arcadeBody;
     body.setVelocity(0, 0);

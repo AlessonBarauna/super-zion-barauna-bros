@@ -1,5 +1,6 @@
+import { platformMaxSpeed, platformSweptCells } from '../systems/movingPlatform';
 import { TileGrid } from './TileGrid';
-import type { LevelData, TilePoint } from './types';
+import { FLYING_ENEMIES, type LevelData, type TilePoint } from './types';
 
 export interface ValidationOptions {
   /** Maior vão (em blocos) que o jogador consegue atravessar. */
@@ -33,7 +34,9 @@ export function validateLevel(level: LevelData, opts: ValidationOptions): string
   checkPoints('spawn', [level.spawn], true);
   checkPoints('goal', [level.goal], true);
   checkPoints('checkpoint', level.checkpoints, true);
-  checkPoints('enemy', level.enemies, true);
+  checkPoints('enemy', level.enemies.filter((e) => !FLYING_ENEMIES.includes(e.kind)), true);
+  checkPoints('enemy-voador', level.enemies.filter((e) => FLYING_ENEMIES.includes(e.kind)), false);
+  if (level.boss) checkPoints('boss', [level.boss], true);
   checkPoints('spike', level.spikes, true);
   checkPoints('coin', level.coins, false);
 
@@ -62,6 +65,32 @@ export function validateLevel(level: LevelData, opts: ValidationOptions): string
   });
   level.blocks.forEach((b) => claim(`block:${b.kind}`, b.x, b.y));
 
+  level.movingPlatforms.forEach((m, i) => {
+    const name = `movingPlatform[${i}]@${m.x},${m.y}`;
+    if (!inBounds(m) || m.w < 1 || m.x + m.w > level.widthTiles) errors.push(`${name}: fora dos limites`);
+    if (!(m.range > 0)) errors.push(`${name}: range deve ser positivo`);
+    if (!(m.period > 0)) errors.push(`${name}: period deve ser positivo`);
+    if (m.phase !== undefined && (m.phase < 0 || m.phase >= 1)) errors.push(`${name}: phase deve estar em [0, 1)`);
+    if (m.period > 0 && m.range > 0 && platformMaxSpeed(m) > 6) errors.push(`${name}: rápida demais para embarcar`);
+    for (const { col, row } of platformSweptCells(m)) {
+      if (row < 0 || row >= level.heightTiles || col < 0 || col >= level.widthTiles) {
+        errors.push(`${name}: o trajeto sai do mundo`);
+        break;
+      }
+      if (grid.isSolid(col, row)) {
+        errors.push(`${name}: o trajeto atravessa uma célula sólida em ${col},${row}`);
+        break;
+      }
+    }
+  });
+
+  // Um vão grande só é válido se uma plataforma móvel horizontal, na altura do terreno,
+  // encosta nas duas bordas (início junto ao terreno anterior e fim junto ao próximo).
+  const isBridged = (prevTo: number, nextFrom: number): boolean =>
+    level.movingPlatforms.some(
+      (m) => m.axis === 'x' && m.y === level.groundRow && m.x <= prevTo + 1 && m.x + m.range + m.w >= nextFrom,
+    );
+
   // Vãos intransponíveis.
   const segs = [...level.ground].sort((a, b) => a.from - b.from);
   for (let i = 1; i < segs.length; i++) {
@@ -69,7 +98,7 @@ export function validateLevel(level: LevelData, opts: ValidationOptions): string
     const next = segs[i];
     if (!prev || !next) continue;
     const gap = next.from - prev.to - 1;
-    if (gap > opts.maxGapTiles) {
+    if (gap > opts.maxGapTiles && !isBridged(prev.to, next.from)) {
       errors.push(`vão de ${gap} blocos entre ${prev.to} e ${next.from} excede o máximo de ${opts.maxGapTiles}`);
     }
   }

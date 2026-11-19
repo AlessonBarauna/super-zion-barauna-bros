@@ -1,16 +1,22 @@
 import Phaser from 'phaser';
 import { OLIVEIRAS_LAYERS } from '../art/backgroundArt';
-import { CogumeloSombrio } from '../entities/enemies/CogumeloSombrio';
+import { CogumeloSombrio, OURICO_CONFIG } from '../entities/enemies/CogumeloSombrio';
+import { CorvoUmbral } from '../entities/enemies/CorvoUmbral';
+import type { Enemy } from '../entities/enemies/Enemy';
+import { BossFight } from '../game/BossFight';
+import { worldInfo } from '../levels/generator';
 import { CHARACTERS } from '../entities/characters/characters';
 import { Player } from '../entities/characters/Player';
 import { buildLevel, type BuiltLevel, type CheckpointObject } from '../game/LevelBuilder';
 import { DEPTH, GAME_HEIGHT, GAME_WIDTH, PALETTE, PX, SCENE_KEYS, TILE } from '../game/constants';
 import { saveManager } from '../game/saveStore';
-import { FIRST_LEVEL_ID, LEVELS } from '../levels';
-import { TileGrid } from '../levels/TileGrid';
+import { FIRST_LEVEL_ID, LEVELS, nextLevelId } from '../levels';
+import { computeStars } from '../systems/worldMap';
+import { isBreakable, TileGrid } from '../levels/TileGrid';
 import type { LevelData } from '../levels/types';
 import { GoalTracker, cameraFocusX, charactersFor, clampToView, nearestAlive, resolveDeath, type GameMode } from '../systems/coop';
-import { KeyboardControls, INPUT_PROFILES } from '../systems/input';
+import { CombinedControls, GamepadControls, KeyboardControls, INPUT_PROFILES } from '../systems/input';
+import { MusicPlayer } from '../systems/music';
 import { ZION_PARAMS } from '../systems/movement';
 import { POWERS } from '../systems/powers';
 import { GameProgress } from '../systems/progress';
@@ -25,9 +31,11 @@ interface GameSceneData {
 
 const COIN_SCORE = 50;
 const STOMP_SCORE = 100;
+const BOSS_SCORE = 2000;
 const TIME_BONUS_PER_SECOND = 10;
 const RESPAWN_DELAY_MS = 1400;
 const ITEM_SCORE = 200;
+const BRICK_SCORE = 20;
 const FIREBALL_SPEED = 560;
 /** Distância horizontal entre os personagens ao começar e ao renascer no checkpoint. */
 const PLAYER_SPACING = 56;
@@ -46,9 +54,12 @@ export class GameScene extends Phaser.Scene {
   private built!: BuiltLevel;
   private mode: GameMode = 'solo';
   private players: Player[] = [];
-  private enemies: CogumeloSombrio[] = [];
+  private enemies: Enemy[] = [];
+  private bossFight?: BossFight;
+  private goalOpen = true;
   private progress!: GameProgress;
   private sfx!: Sfx;
+  private music!: MusicPlayer;
   private bg!: ParallaxBackground;
   private dustEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparkEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -56,6 +67,9 @@ export class GameScene extends Phaser.Scene {
   private items!: Phaser.Physics.Arcade.Group;
   private camTarget!: Phaser.GameObjects.Zone;
 
+  private platformClock = 0;
+  /** Jogadores que pisaram numa plataforma móvel neste quadro (marcado pelo colisor). */
+  private riding = new Set<Player>();
   private goal = new GoalTracker();
   private lastSafe = new Map<Player, SafeSpot>();
   private lookAhead = 0;
@@ -84,6 +98,10 @@ export class GameScene extends Phaser.Scene {
     this.progress = new GameProgress();
     this.sfx = new Sfx(this);
     this.sfx.muted = saveManager.data.settings.muted;
+    this.music = new MusicPlayer(this);
+    this.music.muted = this.sfx.muted;
+    this.music.play(worldInfo(this.level.world).theme, this.level.boss !== undefined);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.music.stop());
     this.mode = saveManager.data.mode;
     this.timeLeft = this.level.timeLimit;
     this.elapsed = 0;
@@ -92,18 +110,29 @@ export class GameScene extends Phaser.Scene {
     this.gameOverShown = false;
     this.freeDeaths = 0;
     this.enemies = [];
+    this.bossFight = undefined;
+    this.goalOpen = true;
     this.players = [];
     this.lastSafe = new Map();
     this.goal = new GoalTracker();
     this.lookAhead = 0;
+    this.platformClock = 0;
+    this.riding = new Set();
     this.bumpedThisFrame = false;
 
     const worldW = this.level.widthTiles * TILE;
     const worldH = this.level.heightTiles * TILE;
     this.physics.world.setBounds(0, 0, worldW, worldH, true, true, true, false);
 
+    const theme = worldInfo(this.level.world);
     this.bg = new ParallaxBackground(this, OLIVEIRAS_LAYERS);
+    this.bg.setTint(theme.bgTint);
     this.built = buildLevel(this, this.level, this.grid);
+    if (theme.tileTint !== 0xffffff) {
+      for (const tile of this.built.solids.getChildren() as Phaser.GameObjects.Image[]) {
+        if (tile.getData('kind') === 'ground') tile.setTint(theme.tileTint);
+      }
+    }
     this.checkpoint = { ...this.built.spawn };
 
     this.dustEmitter = this.add
@@ -133,7 +162,10 @@ export class GameScene extends Phaser.Scene {
     this.items = this.physics.add.group({ allowGravity: false });
 
     charactersFor(this.mode).forEach((id, i) => {
-      const controls = new KeyboardControls(this, i === 0 ? INPUT_PROFILES.player1 : INPUT_PROFILES.player2);
+      const controls = new CombinedControls([
+        new KeyboardControls(this, i === 0 ? INPUT_PROFILES.player1 : INPUT_PROFILES.player2),
+        new GamepadControls(i),
+      ]);
       const player = new Player(this, this.built.spawn.x + i * PLAYER_SPACING, this.built.spawn.bottom, controls, CHARACTERS[id]);
       player.on('jump', () => {
         this.sfx.play('jump');
@@ -158,13 +190,18 @@ export class GameScene extends Phaser.Scene {
     );
 
     for (const spec of this.level.enemies) {
-      const enemy = new CogumeloSombrio(this, (spec.x + 0.5) * TILE, (spec.y + 1) * TILE);
+      const cx = (spec.x + 0.5) * TILE;
+      let enemy: Enemy;
+      if (spec.kind === 'corvo-umbral') enemy = new CorvoUmbral(this, cx, (spec.y + 0.5) * TILE);
+      else if (spec.kind === 'ourico-cristal') enemy = new CogumeloSombrio(this, cx, (spec.y + 1) * TILE, OURICO_CONFIG);
+      else enemy = new CogumeloSombrio(this, cx, (spec.y + 1) * TILE);
       this.enemies.push(enemy);
-      this.physics.add.collider(enemy, this.built.solids);
-      for (const player of this.players) this.physics.add.overlap(player, enemy, () => this.onEnemyTouch(player, enemy));
+      if (spec.kind !== 'corvo-umbral') this.physics.add.collider(enemy as unknown as Phaser.Physics.Arcade.Sprite, this.built.solids);
+      for (const player of this.players) this.physics.add.overlap(player, enemy as unknown as Phaser.Physics.Arcade.Sprite, () => this.onEnemyTouch(player, enemy));
     }
 
     for (const player of this.players) {
+      for (const mover of this.built.movers) this.physics.add.collider(player, mover, () => this.riding.add(player));
       this.physics.add.overlap(player, this.items, (_p, i) => this.collectItem(player, i as Phaser.Physics.Arcade.Sprite));
       this.physics.add.collider(player, this.built.solids, (_p, tile) => this.onSolidTouch(player, tile as Phaser.Physics.Arcade.Sprite));
       this.physics.add.overlap(player, this.built.coins, (_p, coin) => this.collectCoin(player, coin as Phaser.Physics.Arcade.Sprite));
@@ -175,6 +212,23 @@ export class GameScene extends Phaser.Scene {
         this.physics.add.overlap(player, cp.zone, () => this.activateCheckpoint(cp, player));
       }
       this.physics.add.overlap(player, this.built.goalZone, () => this.onGoal(player));
+    }
+
+    if (this.level.boss) {
+      this.goalOpen = false;
+      for (const visual of this.built.goalVisuals) visual.setVisible(false);
+      this.bossFight = new BossFight(this, this.level.boss, this.built.solids, this.players, {
+        onHit: () => {
+          this.sfx.play('stomp');
+          this.cameras.main.shake(160, 0.004);
+          this.progress.addScore(STOMP_SCORE);
+        },
+        onWall: () => {
+          this.sfx.play('bump');
+          this.cameras.main.shake(260, 0.008);
+        },
+        onDefeated: () => this.onBossDefeated(),
+      });
     }
 
     // A câmera segue um ponto invisível: o jogador (solo) ou o meio entre os dois (cooperativo).
@@ -191,6 +245,7 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-F', () => this.scale.toggleFullscreen());
     this.input.keyboard?.on('keydown-M', () => {
       this.sfx.muted = !this.sfx.muted;
+      this.music.setMuted(this.sfx.muted);
       saveManager.setMuted(this.sfx.muted);
     });
 
@@ -204,6 +259,8 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     this.bumpedThisFrame = false;
 
+    this.platformClock += dt;
+    for (const mover of this.built.movers) mover.follow(this.platformClock, dt);
     for (const p of this.players) p.update(dt, time);
 
     const view = { scrollX: cam.scrollX, viewWidth: GAME_WIDTH, marginLeft: 6, marginRight: 6 };
@@ -216,7 +273,8 @@ export class GameScene extends Phaser.Scene {
         body.x = fit.x;
         if ((fit.clamped < 0 && body.velocity.x < 0) || (fit.clamped > 0 && body.velocity.x > 0)) body.setVelocityX(0);
       }
-      if (p.onGround) this.lastSafe.set(p, { x: p.x, bottom: body.bottom });
+      // Não guarda como ponto seguro o que está sobre plataforma móvel (ela se afasta).
+      if (p.onGround && !this.riding.has(p)) this.lastSafe.set(p, { x: p.x, bottom: body.bottom });
       if (p.y > GAME_HEIGHT + 140) p.kill();
     }
 
@@ -241,6 +299,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    this.bossFight?.step(dt, this.players);
+    this.riding.clear();
     this.updateCamera(dt);
     this.updateFireballs(time);
     this.bg.update(cam.scrollX, time);
@@ -294,22 +354,60 @@ export class GameScene extends Phaser.Scene {
     if ((kind !== 'brick' && kind !== 'surprise') || this.bumpedThisFrame) return;
     if (!player.arcadeBody.touching.up || tile.getData('bumping') === true) return;
     this.bumpedThisFrame = true;
-    tile.setData('bumping', true);
-    this.tweens.add({
-      targets: tile,
-      y: tile.y - 11 * PX,
-      duration: 80,
-      yoyo: true,
-      onComplete: () => tile.setData('bumping', false),
-    });
+    if (kind !== 'brick') {
+      tile.setData('bumping', true);
+      this.tweens.add({
+        targets: tile,
+        y: tile.y - 11 * PX,
+        duration: 80,
+        yoyo: true,
+        onComplete: () => tile.setData('bumping', false),
+      });
+    }
+    if (kind === 'brick') {
+      this.breakBrick(tile);
+      return;
+    }
     if (kind === 'surprise') {
       tile.setTexture('tile-used');
       tile.setData('kind', 'used');
       const reward = (tile.getData('reward') as string | undefined) ?? 'coin';
       if (reward === 'coin') this.popCoin(tile.x, tile.y - TILE);
       else this.spawnItem(reward === 'heart' ? 'heart' : 'flor-de-fogo', tile.x, tile.y);
-    } else {
-      this.sfx.play('bump');
+    }
+  }
+
+  /** Tijolo atingido por baixo: quebra, solta estilhaços, dá pontos e derruba inimigos que estavam em cima. */
+  private breakBrick(tile: Phaser.Physics.Arcade.Sprite): void {
+    const col = tile.getData('col') as number;
+    const row = tile.getData('row') as number;
+    if (!isBreakable(this.grid.kindAt(col, row))) return;
+    const x = tile.x;
+    const top = tile.y - TILE / 2;
+    this.grid.removeCell(col, row);
+    tile.destroy();
+    this.progress.addScore(BRICK_SCORE);
+    this.sfx.play('break');
+    for (const [i, dir] of ([-1, -1, 1, 1] as const).entries()) {
+      const shard = this.add.image(x + dir * 12 * PX, tile.y + (i % 2 === 0 ? -10 : 8) * PX, 'brick-shard').setDepth(DEPTH.fx);
+      this.tweens.add({ targets: shard, x: shard.x + dir * (50 + i * 12) * PX, angle: dir * 320, duration: 650, ease: 'Quad.easeOut' });
+      this.tweens.add({
+        targets: shard,
+        y: shard.y - (110 - i * 14) * PX,
+        duration: 260,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+        onYoyo: () => this.tweens.add({ targets: shard, y: shard.y + 420 * PX, alpha: 0, duration: 420, ease: 'Quad.easeIn', onComplete: () => shard.destroy() }),
+      });
+    }
+    for (const enemy of this.enemies) {
+      if (enemy.dead || !enemy.active) continue;
+      const eb = enemy.arcadeBody;
+      const onTop = Math.abs(eb.bottom - top) < 10 * PX && Math.abs(enemy.x - x) < TILE * 0.75;
+      if (onTop) {
+        enemy.knockOut(enemy.x >= x ? 1 : -1);
+        this.progress.addScore(STOMP_SCORE);
+      }
     }
   }
 
@@ -416,6 +514,11 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
       const box = child.getBounds();
+      if (this.bossFight?.fireHit(box)) {
+        this.sfx.play('stomp');
+        this.explodeFireball(child);
+        continue;
+      }
       for (const enemy of this.enemies) {
         if (enemy.dead || !enemy.active) continue;
         if (Phaser.Geom.Intersects.RectangleToRectangle(box, enemy.getBounds())) {
@@ -449,13 +552,13 @@ export class GameScene extends Phaser.Scene {
     this.grantCoin(1);
   }
 
-  private onEnemyTouch(player: Player, enemy: CogumeloSombrio): void {
+  private onEnemyTouch(player: Player, enemy: Enemy): void {
     if (enemy.dead || player.dead || this.finished) return;
     const pb = player.arcadeBody;
     const eb = enemy.arcadeBody;
     const falling = pb.velocity.y > 40 * PX;
     const fromAbove = pb.bottom - eb.top < eb.height * 0.6;
-    if (falling && fromAbove) {
+    if (falling && fromAbove && enemy.stompable) {
       enemy.squash();
       player.bounce();
       this.progress.addScore(STOMP_SCORE);
@@ -519,7 +622,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Um jogador chegou à bandeira. A fase só termina quando todos os da partida chegarem. */
   private onGoal(player: Player): void {
-    if (this.finished || player.dead || player.victory) return;
+    if (!this.goalOpen || this.finished || player.dead || player.victory) return;
     const first = this.goal.count === 0;
     this.goal.reach(player.def.id);
     player.celebrate();
@@ -536,19 +639,39 @@ export class GameScene extends Phaser.Scene {
     if (this.goal.isComplete(this.players.map((p) => p.def.id))) this.finishLevel();
   }
 
+  private onBossDefeated(): void {
+    this.progress.addScore(BOSS_SCORE);
+    this.sfx.play('win');
+    this.cameras.main.flash(300, 255, 240, 180);
+    this.time.delayedCall(1800, () => {
+      this.goalOpen = true;
+      for (const visual of this.built.goalVisuals) visual.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: this.built.goalVisuals, alpha: 1, duration: 600 });
+      this.sparkEmitter.explode(30, this.built.goalZone.x, this.built.goalZone.y);
+    });
+  }
+
   private finishLevel(): void {
     this.finished = true;
     const bonus = Math.floor(this.timeLeft) * TIME_BONUS_PER_SECOND;
     this.progress.addScore(bonus);
     const previousBest = saveManager.data.bestScores[this.level.id] ?? 0;
-    saveManager.recordLevelComplete(this.level.id, this.progress.score, this.progress.totalCoinsCollected);
+    const stars = computeStars({
+      coinsCollected: this.progress.totalCoinsCollected,
+      totalCoins: this.level.coins.length,
+      timeLeft: this.timeLeft,
+      timeLimit: this.level.timeLimit,
+    });
+    saveManager.recordLevelComplete(this.level.id, this.progress.score, this.progress.totalCoinsCollected, stars);
     const seconds = Math.floor(this.elapsed);
     const lines = [
-      `Tempo: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`,
+      `Tempo: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}   •   Estrelas: ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`,
       `Bônus de tempo: ${bonus}`,
       `Pontuação: ${String(this.progress.score).padStart(6, '0')}${this.progress.score > previousBest ? '  ★ Novo recorde!' : ''}`,
     ];
-    this.time.delayedCall(1700, () => this.showEndOverlay('FASE CONCLUÍDA!', lines, 'JOGAR DE NOVO'));
+    const next = nextLevelId(this.level.id);
+    if (!next) lines.push('Você derrotou o Imperador Umbrax! Fim da aventura.');
+    this.time.delayedCall(1700, () => this.showEndOverlay('FASE CONCLUÍDA!', lines, 'JOGAR DE NOVO', next));
   }
 
   private pause(): void {
@@ -557,7 +680,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.pause();
   }
 
-  private showEndOverlay(title: string, lines: string[], primaryLabel: string): void {
+  private showEndOverlay(title: string, lines: string[], primaryLabel: string, next: string | null = null): void {
     const cx = GAME_WIDTH / 2;
     const fixed = <T extends Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth>(
       obj: T,
@@ -600,20 +723,19 @@ export class GameScene extends Phaser.Scene {
           .setOrigin(0.5),
       ),
     );
-    fixed(createButton(this, cx, 470, primaryLabel, () => this.scene.restart()));
-    fixed(
-      createButton(
-        this,
-        cx,
-        556,
-        'MENU PRINCIPAL',
-        () => {
-          this.scene.stop(SCENE_KEYS.UI);
-          this.scene.start(SCENE_KEYS.Menu);
-        },
-        { height: 56, fontSize: 26, fill: Phaser.Display.Color.HexStringToColor(PALETTE.roxoUmbrax).color },
-      ),
-    );
+    const toMap = (): void => {
+      this.scene.stop(SCENE_KEYS.UI);
+      this.scene.start(SCENE_KEYS.WorldSelect);
+    };
+    const small = { height: 56, fontSize: 26, fill: Phaser.Display.Color.HexStringToColor(PALETTE.roxoUmbrax).color };
+    if (next) {
+      fixed(createButton(this, cx, 440, 'PRÓXIMA FASE', () => this.scene.start(SCENE_KEYS.Game, { levelId: next })));
+      fixed(createButton(this, cx, 510, primaryLabel, () => this.scene.restart(), { ...small, fill: Phaser.Display.Color.HexStringToColor(PALETTE.azulZion).color }));
+      fixed(createButton(this, cx, 574, 'MAPA DE MUNDOS', toMap, small));
+    } else {
+      fixed(createButton(this, cx, 470, primaryLabel, () => this.scene.restart()));
+      fixed(createButton(this, cx, 556, 'MAPA DE MUNDOS', toMap, small));
+    }
   }
 
   /** Utilitário de depuração/validação (usado pelos scripts de teste visual). */
@@ -640,6 +762,10 @@ export class GameScene extends Phaser.Scene {
       timeLeft: Math.round(this.timeLeft),
       jumpVelocity: ZION_PARAMS.jumpVelocity,
       mode: this.mode,
+      levelId: this.level.id,
+      goalOpen: this.goalOpen,
+      boss: this.bossFight ? { hp: this.bossFight.boss.ai.hp, mode: this.bossFight.boss.ai.mode, x: Math.round(this.bossFight.boss.x) } : null,
+      enemyKinds: this.enemies.map((e) => e.kind),
       goalReached: this.goal.count,
       scrollX: Math.round(this.cameras.main.scrollX),
       players: this.players.map((q) => ({

@@ -166,6 +166,44 @@ function platformTile(ctx: Ctx): void {
   }
 }
 
+/** Plataforma móvel: laje de pedra azulada com acabamento dourado (diferente da plataforma de madeira fixa). */
+function movingTile(ctx: Ctx): void {
+  roundRectPath(ctx, 1.5, 1.5, T - 3, 24, 7);
+  fillStroke(ctx, '#5E7FA8', 3);
+  ctx.save();
+  roundRectPath(ctx, 1.5, 1.5, T - 3, 24, 7);
+  ctx.clip();
+  ctx.fillStyle = '#9DB9DA';
+  ctx.fillRect(0, 0, T, 7);
+  ctx.fillStyle = '#44628A';
+  ctx.fillRect(0, 18, T, 9);
+  ctx.restore();
+  ctx.strokeStyle = PALETTE.douradoAurora;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(6, 9);
+  ctx.lineTo(T - 6, 9);
+  ctx.stroke();
+  for (const x of [7, T - 7]) {
+    circle(ctx, x, 15, 1.8);
+    fillStroke(ctx, '#FFE98A', 1, '#B9811A');
+  }
+  circle(ctx, T / 2, 15, 4.2);
+  fillStroke(ctx, PALETTE.douradoAurora, 1.4);
+}
+
+function brickShard(ctx: Ctx): void {
+  polygon(ctx, [
+    [1, 4],
+    [10, 1],
+    [13, 9],
+    [4, 13],
+  ]);
+  fillStroke(ctx, '#D9743A', 1.8);
+  ctx.fillStyle = '#F4A35F';
+  ctx.fillRect(4, 4, 4, 2);
+}
+
 function spikesTile(ctx: Ctx): void {
   for (let i = 0; i < 3; i++) {
     const x = 1.5 + i * 14;
@@ -486,6 +524,8 @@ export function createWorldTextures(scene: Phaser.Scene): void {
   canvasTexture(scene, 'tile-used', T, T, usedTile);
   canvasTexture(scene, 'tile-stone', T, T, stoneTile);
   canvasTexture(scene, 'tile-platform', T, T, platformTile);
+  canvasTexture(scene, 'tile-moving', T, 27, movingTile);
+  canvasTexture(scene, 'brick-shard', 14, 14, brickShard);
   canvasTexture(scene, 'spikes', T, 34, spikesTile);
   canvasTexture(scene, 'pit-fill', T, 135, pitFill);
 

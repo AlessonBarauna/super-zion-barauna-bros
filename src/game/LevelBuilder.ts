@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TILE_VARIANTS } from '../art/worldArt';
 import { seeded } from '../art/canvasArt';
+import { MovingPlatform } from '../entities/objects/MovingPlatform';
 import { DEPTH, PX, TILE } from './constants';
 import { TileGrid, type CellKind } from '../levels/TileGrid';
 import type { LevelData } from '../levels/types';
@@ -15,11 +16,14 @@ export interface CheckpointObject {
 
 export interface BuiltLevel {
   solids: Phaser.Physics.Arcade.StaticGroup;
+  movers: MovingPlatform[];
   coins: Phaser.Physics.Arcade.StaticGroup;
   spikes: Phaser.Physics.Arcade.StaticGroup;
   checkpoints: CheckpointObject[];
   goalZone: Phaser.GameObjects.Zone;
   banner: Phaser.GameObjects.Image;
+  /** Mastro e bandeira (escondidos até o fim, nas arenas de chefão). */
+  goalVisuals: Phaser.GameObjects.Image[];
   bannerRestY: number;
   bannerLowY: number;
   spawn: { x: number; bottom: number };
@@ -61,8 +65,12 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
     const tile = solids.create(center(col), center(row), texture) as Phaser.Physics.Arcade.Sprite;
     tile.setDepth(DEPTH.tiles);
     tile.setData('kind', kind);
+    tile.setData('col', col);
+    tile.setData('row', row);
     if (kind === 'surprise') tile.setData('reward', rewards.get(key) ?? 'coin');
   }
+
+  const movers = level.movingPlatforms.map((spec) => new MovingPlatform(scene, spec));
 
   buildPitFill(scene, level);
   buildDecor(scene, level);
@@ -114,11 +122,13 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
 
   return {
     solids,
+    movers,
     coins,
     spikes,
     checkpoints,
     goalZone,
     banner,
+    goalVisuals: [pole, banner],
     bannerRestY,
     bannerLowY,
     spawn: { x: center(level.spawn.x), bottom: (level.spawn.y + 1) * TILE },
