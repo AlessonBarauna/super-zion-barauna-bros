@@ -25,7 +25,7 @@ npm run preview    # serve o build
 
 Jogador 2 (Bara, cooperativo): `J` `L` mover · `K` correr · `I` pular · `U` poder. No menu, `1` inicia o modo individual, `2` o cooperativo e `Enter` repete o último modo usado.
 
-## Estado atual (v0.1.0 — Fases 1 a 4 do roadmap)
+## Estado atual (v0.1.0 — Fases 1 a 5 do roadmap)
 
 Jogável: menu → fase **1-1 Vila das Oliveiras** (130 blocos de largura) com Zion, câmera lateral com parallax,
 pulo variável / coyote time / jump buffer, moedas (100 = +1 vida), blocos surpresa e tijolos, espinhos, abismos,
@@ -41,7 +41,12 @@ pontuação são da equipe; corações e poder são individuais; a câmera acomp
 nem fica para trás; a morte de um custa 1 vida e ele volta perto do parceiro (se os dois caírem, no checkpoint; tempo
 esgotado gasta uma única vida); a fase só termina quando os dois chegam à bandeira.
 
-**Ainda não existe:** demais poderes, chefões, mundos 2–8, música, gamepad, seleção de mundos,
+Fase 5: **tijolos quebráveis** (atingidos por baixo: quebram, soltam estilhaços, +20 pontos e derrubam inimigos que estavam em cima;
+blocos de pedra e surpresa não quebram) e **plataformas móveis** de passagem única (só o topo colide; carregam quem está em cima),
+definidas nos dados da fase (`movingPlatforms`: eixo, alcance, período, fase). A fase 1-1 ganhou um elevador e uma ponte móvel sobre
+um abismo de 9 blocos; o validador de fases só aceita um vão maior que o salto se uma ponte móvel o cobrir de borda a borda.
+
+**Ainda não existe:** demais poderes, mais inimigos, chefões, mundos 2–8, música, gamepad, seleção de mundos,
 aplicativo Windows (Tauri). Botões do menu só existem quando a função existe.
 
 ## Arte e áudio (provisório documentado)

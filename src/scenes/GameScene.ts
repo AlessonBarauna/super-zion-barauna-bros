@@ -7,7 +7,7 @@ import { buildLevel, type BuiltLevel, type CheckpointObject } from '../game/Leve
 import { DEPTH, GAME_HEIGHT, GAME_WIDTH, PALETTE, PX, SCENE_KEYS, TILE } from '../game/constants';
 import { saveManager } from '../game/saveStore';
 import { FIRST_LEVEL_ID, LEVELS } from '../levels';
-import { TileGrid } from '../levels/TileGrid';
+import { isBreakable, TileGrid } from '../levels/TileGrid';
 import type { LevelData } from '../levels/types';
 import { GoalTracker, cameraFocusX, charactersFor, clampToView, nearestAlive, resolveDeath, type GameMode } from '../systems/coop';
 import { KeyboardControls, INPUT_PROFILES } from '../systems/input';
@@ -28,6 +28,7 @@ const STOMP_SCORE = 100;
 const TIME_BONUS_PER_SECOND = 10;
 const RESPAWN_DELAY_MS = 1400;
 const ITEM_SCORE = 200;
+const BRICK_SCORE = 20;
 const FIREBALL_SPEED = 560;
 /** Distância horizontal entre os personagens ao começar e ao renascer no checkpoint. */
 const PLAYER_SPACING = 56;
@@ -56,6 +57,9 @@ export class GameScene extends Phaser.Scene {
   private items!: Phaser.Physics.Arcade.Group;
   private camTarget!: Phaser.GameObjects.Zone;
 
+  private platformClock = 0;
+  /** Jogadores que pisaram numa plataforma móvel neste quadro (marcado pelo colisor). */
+  private riding = new Set<Player>();
   private goal = new GoalTracker();
   private lastSafe = new Map<Player, SafeSpot>();
   private lookAhead = 0;
@@ -96,6 +100,8 @@ export class GameScene extends Phaser.Scene {
     this.lastSafe = new Map();
     this.goal = new GoalTracker();
     this.lookAhead = 0;
+    this.platformClock = 0;
+    this.riding = new Set();
     this.bumpedThisFrame = false;
 
     const worldW = this.level.widthTiles * TILE;
@@ -165,6 +171,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     for (const player of this.players) {
+      for (const mover of this.built.movers) this.physics.add.collider(player, mover, () => this.riding.add(player));
       this.physics.add.overlap(player, this.items, (_p, i) => this.collectItem(player, i as Phaser.Physics.Arcade.Sprite));
       this.physics.add.collider(player, this.built.solids, (_p, tile) => this.onSolidTouch(player, tile as Phaser.Physics.Arcade.Sprite));
       this.physics.add.overlap(player, this.built.coins, (_p, coin) => this.collectCoin(player, coin as Phaser.Physics.Arcade.Sprite));
@@ -204,6 +211,8 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     this.bumpedThisFrame = false;
 
+    this.platformClock += dt;
+    for (const mover of this.built.movers) mover.follow(this.platformClock, dt);
     for (const p of this.players) p.update(dt, time);
 
     const view = { scrollX: cam.scrollX, viewWidth: GAME_WIDTH, marginLeft: 6, marginRight: 6 };
@@ -216,7 +225,8 @@ export class GameScene extends Phaser.Scene {
         body.x = fit.x;
         if ((fit.clamped < 0 && body.velocity.x < 0) || (fit.clamped > 0 && body.velocity.x > 0)) body.setVelocityX(0);
       }
-      if (p.onGround) this.lastSafe.set(p, { x: p.x, bottom: body.bottom });
+      // Não guarda como ponto seguro o que está sobre plataforma móvel (ela se afasta).
+      if (p.onGround && !this.riding.has(p)) this.lastSafe.set(p, { x: p.x, bottom: body.bottom });
       if (p.y > GAME_HEIGHT + 140) p.kill();
     }
 
@@ -241,6 +251,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    this.riding.clear();
     this.updateCamera(dt);
     this.updateFireballs(time);
     this.bg.update(cam.scrollX, time);
@@ -294,22 +305,60 @@ export class GameScene extends Phaser.Scene {
     if ((kind !== 'brick' && kind !== 'surprise') || this.bumpedThisFrame) return;
     if (!player.arcadeBody.touching.up || tile.getData('bumping') === true) return;
     this.bumpedThisFrame = true;
-    tile.setData('bumping', true);
-    this.tweens.add({
-      targets: tile,
-      y: tile.y - 11 * PX,
-      duration: 80,
-      yoyo: true,
-      onComplete: () => tile.setData('bumping', false),
-    });
+    if (kind !== 'brick') {
+      tile.setData('bumping', true);
+      this.tweens.add({
+        targets: tile,
+        y: tile.y - 11 * PX,
+        duration: 80,
+        yoyo: true,
+        onComplete: () => tile.setData('bumping', false),
+      });
+    }
+    if (kind === 'brick') {
+      this.breakBrick(tile);
+      return;
+    }
     if (kind === 'surprise') {
       tile.setTexture('tile-used');
       tile.setData('kind', 'used');
       const reward = (tile.getData('reward') as string | undefined) ?? 'coin';
       if (reward === 'coin') this.popCoin(tile.x, tile.y - TILE);
       else this.spawnItem(reward === 'heart' ? 'heart' : 'flor-de-fogo', tile.x, tile.y);
-    } else {
-      this.sfx.play('bump');
+    }
+  }
+
+  /** Tijolo atingido por baixo: quebra, solta estilhaços, dá pontos e derruba inimigos que estavam em cima. */
+  private breakBrick(tile: Phaser.Physics.Arcade.Sprite): void {
+    const col = tile.getData('col') as number;
+    const row = tile.getData('row') as number;
+    if (!isBreakable(this.grid.kindAt(col, row))) return;
+    const x = tile.x;
+    const top = tile.y - TILE / 2;
+    this.grid.removeCell(col, row);
+    tile.destroy();
+    this.progress.addScore(BRICK_SCORE);
+    this.sfx.play('break');
+    for (const [i, dir] of ([-1, -1, 1, 1] as const).entries()) {
+      const shard = this.add.image(x + dir * 12 * PX, tile.y + (i % 2 === 0 ? -10 : 8) * PX, 'brick-shard').setDepth(DEPTH.fx);
+      this.tweens.add({ targets: shard, x: shard.x + dir * (50 + i * 12) * PX, angle: dir * 320, duration: 650, ease: 'Quad.easeOut' });
+      this.tweens.add({
+        targets: shard,
+        y: shard.y - (110 - i * 14) * PX,
+        duration: 260,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+        onYoyo: () => this.tweens.add({ targets: shard, y: shard.y + 420 * PX, alpha: 0, duration: 420, ease: 'Quad.easeIn', onComplete: () => shard.destroy() }),
+      });
+    }
+    for (const enemy of this.enemies) {
+      if (enemy.dead || !enemy.active) continue;
+      const eb = enemy.arcadeBody;
+      const onTop = Math.abs(eb.bottom - top) < 10 * PX && Math.abs(enemy.x - x) < TILE * 0.75;
+      if (onTop) {
+        enemy.knockOut(enemy.x >= x ? 1 : -1);
+        this.progress.addScore(STOMP_SCORE);
+      }
     }
   }
 

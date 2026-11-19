@@ -2,6 +2,9 @@ import type { LevelData } from './types';
 
 export type CellKind = 'ground' | 'platform' | 'brick' | 'surprise' | 'stone';
 
+/** Só tijolos podem ser quebrados; pedra e terreno não. */
+export const isBreakable = (kind: CellKind | undefined): boolean => kind === 'brick';
+
 /** Grade de células sólidas de uma fase. Lógica pura, usada por IA, validação e construção. */
 export class TileGrid {
   private readonly cells = new Map<string, CellKind>();
@@ -32,6 +35,11 @@ export class TileGrid {
   isSolid(col: number, row: number): boolean {
     if (col < 0 || col >= this.level.widthTiles) return true;
     return this.cells.has(TileGrid.key(col, row));
+  }
+
+  /** Remove uma célula (bloco quebrado). Retorna false se não havia nada ali. */
+  removeCell(col: number, row: number): boolean {
+    return this.cells.delete(TileGrid.key(col, row));
   }
 
   entries(): IterableIterator<[string, CellKind]> {

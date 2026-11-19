@@ -25,6 +25,20 @@ export interface PlatformSpec extends TilePoint {
   w: number;
 }
 
+/**
+ * Plataforma móvel de passagem única (só o topo colide). (x, y) é a posição inicial:
+ * no eixo 'x' ela vai para a direita até `range` blocos; no eixo 'y' ela começa embaixo e sobe `range` blocos.
+ */
+export interface MovingPlatformSpec extends PlatformSpec {
+  axis: 'x' | 'y';
+  /** Distância percorrida, em blocos. */
+  range: number;
+  /** Segundos para ir e voltar. */
+  period: number;
+  /** Fase inicial do ciclo, de 0 a 1. */
+  phase?: number;
+}
+
 export type EnemyKind = 'cogumelo-sombrio';
 
 export interface EnemySpec extends TilePoint {
@@ -51,6 +65,7 @@ export interface LevelData {
   spawn: TilePoint;
   ground: GroundSegment[];
   platforms: PlatformSpec[];
+  movingPlatforms: MovingPlatformSpec[];
   blocks: BlockSpec[];
   coins: TilePoint[];
   enemies: EnemySpec[];

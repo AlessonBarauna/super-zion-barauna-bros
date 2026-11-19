@@ -72,10 +72,10 @@ with sync_playwright() as pw:
     kind = ev(pg, f"{SC}.built.solids.getChildren().find(t => Math.abs(t.x-(8.5*{T}))<2 && Math.abs(t.y-(6.5*{T}))<14)?.getData('kind')")
     check('bloco surpresa: vira usado e dá +1 moeda', kind == 'used' and after['coins'] == before['coins'] + 1, f'kind={kind} moedas {before["coins"]}->{after["coins"]}')
 
-    # --- Pisar em inimigo (col 28, sem plataformas por cima)
+    # --- Pisar em inimigo (escolhe um inimigo sem nada por cima, nem plataformas móveis)
     fresh(pg, enemies=True)
     en0 = state(pg)['enemies']; sc0 = state(pg)['score']
-    ev(pg, f"(() => {{ const s={SC}; const e=s.enemies.find(e=>Math.abs(e.x-28.5*{T})<150); e.tick = () => true; e.arcadeBody.setVelocityX(0); s.player.respawn(e.x, e.arcadeBody.top-260); s.player.vitality.reset(); }})()")
+    ev(pg, f"(() => {{ const s={SC}; const clear=(e)=>{{ const c=Math.floor(e.x/{T}); for(let r=0;r<8;r++) if(s.grid.isSolid(c,r)||s.grid.isSolid(c-1,r)||s.grid.isSolid(c+1,r)) return false; return !s.built.movers.some(m=>e.x>m.x-{T}&&e.x<m.x+m.width+{T}); }}; const e=s.enemies.find(e=>e.active&&clear(e)); e.tick = () => true; e.arcadeBody.setVelocityX(0); s.player.respawn(e.x, e.arcadeBody.top-260); s.player.vitality.reset(); }})()")
     pg.wait_for_timeout(1700)
     st = state(pg)
     check('pisar no Cogumelo Sombrio: inimigo some e +100 pontos', st['enemies'] == en0 - 1 and st['score'] >= sc0 + 100 and st['hp'] == 3, f'inimigos {en0}->{st["enemies"]} pontos {sc0}->{st["score"]} hp={st["hp"]} x={st["x"]}')

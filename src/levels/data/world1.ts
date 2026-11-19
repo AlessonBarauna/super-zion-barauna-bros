@@ -31,7 +31,7 @@ export const LEVEL_1_1: LevelData = {
   ground: [
     { from: 0, to: 34 },
     { from: 38, to: 59 },
-    { from: 63, to: 84 },
+    { from: 63, to: 79 },
     { from: 89, to: 129 },
   ],
   platforms: [
@@ -44,6 +44,12 @@ export const LEVEL_1_1: LevelData = {
     { x: 78, y: 6, w: 3 },
     { x: 92, y: 6, w: 4 },
     { x: 98, y: 4, w: 3 },
+  ],
+  movingPlatforms: [
+    // Elevador: sobe de perto do chão até o alto, onde ficam moedas.
+    { x: 25, y: 8, w: 3, axis: 'y', range: 4, period: 6 },
+    // Ponte sobre o abismo largo (9 blocos): vai de uma borda do terreno até a outra.
+    { x: 80, y: 9, w: 3, axis: 'x', range: 6, period: 7 },
   ],
   blocks: [
     { kind: 'brick', x: 7, y: 6 },
@@ -62,6 +68,7 @@ export const LEVEL_1_1: LevelData = {
     ...line(14, 16, 4),
     { x: 22, y: 3 },
     { x: 23, y: 3 },
+    ...line(25, 27, 2),
     { x: 35, y: 7 },
     { x: 36, y: 6 },
     { x: 37, y: 7 },
@@ -88,8 +95,8 @@ export const LEVEL_1_1: LevelData = {
     { kind: 'cogumelo-sombrio', x: 44, y: 8 },
     { kind: 'cogumelo-sombrio', x: 55, y: 8 },
     { kind: 'cogumelo-sombrio', x: 70, y: 8 },
-    { kind: 'cogumelo-sombrio', x: 77, y: 8 },
-    { kind: 'cogumelo-sombrio', x: 94, y: 8 },
+    { kind: 'cogumelo-sombrio', x: 73, y: 8 },
+    { kind: 'cogumelo-sombrio', x: 99, y: 8 },
     { kind: 'cogumelo-sombrio', x: 101, y: 8 },
     { kind: 'cogumelo-sombrio', x: 106, y: 8 },
   ],
