@@ -173,6 +173,11 @@ export class SaveManager {
     this.save();
   }
 
+  setMode(mode: GameMode): void {
+    this.data.mode = mode;
+    this.save();
+  }
+
   setMuted(muted: boolean): void {
     this.data.settings.muted = muted;
     this.save();

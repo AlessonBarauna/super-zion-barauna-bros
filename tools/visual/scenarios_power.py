@@ -19,7 +19,7 @@ def fresh(pg, enemies=False):
 def tp(pg, col, row):
     ev(pg, f"(() => {{ const s={SC}; s.player.respawn(({col}+0.5)*{T}, ({row}+1)*{T}); return null; }})()")
 def grab_item(pg):
-    ev(pg, f"(() => {{ const s={SC}; const i=s.items.getChildren().find(i=>i.active); s.player.arcadeBody.reset(i.x, i.y); return null; }})()")
+    ev(pg, f"(() => {{ const s={SC}; const i=s.items.getChildren().find(i=>i.active); i.body.setVelocity(0,0); i.body.setAllowGravity(false); s.player.arcadeBody.reset(i.x, i.y); return null; }})()")
 
 with sync_playwright() as pw:
     b = pw.chromium.launch(executable_path='/usr/bin/google-chrome', headless=True,
@@ -92,7 +92,7 @@ with sync_playwright() as pw:
     # --- Salvamento: concluir a fase grava no localStorage
     fresh(pg)
     ev(pg, "localStorage.removeItem('szbb.save')")
-    ev(pg, f"(() => {{ const s={SC}; s.progress.score = 1000; s.progress.collectCoin(7); s.onGoal(); return null; }})()")
+    ev(pg, f"(() => {{ const s={SC}; s.progress.score = 1000; s.progress.collectCoin(7); s.onGoal(s.player); return null; }})()")
     pg.wait_for_timeout(2600)
     pg.screenshot(path=f'{SHOTS}/pw_win.png')
     saved = json.loads(ev(pg, "localStorage.getItem('szbb.save')") or 'null')

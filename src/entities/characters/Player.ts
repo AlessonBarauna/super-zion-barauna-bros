@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ZION_BODY, ZION_FRAME } from '../../art/zionArt';
+import { ZION_FRAME } from '../../art/characterArt';
 import { DEPTH, PX } from '../../game/constants';
 import type { ControlSource } from '../../systems/input';
 import {
@@ -7,12 +7,12 @@ import {
   deriveAnimation,
   NEUTRAL_INPUT,
   stepMovement,
-  ZION_PARAMS,
   type MovementState,
   type PlayerAnimation,
 } from '../../systems/movement';
 import { PowerState } from '../../systems/powers';
 import { Vitality } from '../../systems/vitality';
+import type { CharacterDef } from './characters';
 
 const LAND_ANIM_TIME = 0.1;
 const STUN_TIME = 0.4;
@@ -21,7 +21,7 @@ const HARD_LANDING = 420 * PX;
 
 export type PlayerEvent = 'jump' | 'land' | 'hurt' | 'died' | 'fire';
 
-/** Zion Baraúna. A lógica de movimento fica em systems/movement; aqui só há integração com o Phaser. */
+/** Personagem jogável (Zion ou Bara). A lógica de movimento fica em systems/movement; aqui só há integração com o Phaser. */
 export class Player extends Phaser.Physics.Arcade.Sprite {
   readonly vitality = new Vitality(3);
   readonly powers = new PowerState();
@@ -43,18 +43,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     x: number,
     bottomY: number,
     private readonly controls: ControlSource,
+    readonly def: CharacterDef,
   ) {
-    super(scene, x, 0, 'zion-idle-0');
+    super(scene, x, 0, `${def.id}-idle-0`);
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setDepth(DEPTH.player);
     const body = this.arcadeBody;
-    body.setSize(ZION_BODY.w * PX, ZION_BODY.h * PX, false);
-    body.setOffset(ZION_BODY.offsetX * PX, ZION_BODY.offsetY * PX);
-    body.setMaxVelocity(ZION_PARAMS.runSpeed * 1.6, ZION_PARAMS.maxFallSpeed * 1.5);
+    body.setSize(def.body.w * PX, def.body.h * PX, false);
+    body.setOffset(def.body.offsetX * PX, def.body.offsetY * PX);
+    body.setMaxVelocity(def.params.runSpeed * 1.6, def.params.maxFallSpeed * 1.5);
     this.setCollideWorldBounds(true);
     this.placeOnGround(x, bottomY);
-    this.play('zion-idle');
+    this.play(`${def.id}-idle`);
   }
 
   get arcadeBody(): Phaser.Physics.Arcade.Body {
@@ -99,12 +100,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.emit('fire' satisfies PlayerEvent);
     }
     const onGround = this.onGround;
-    const s = stepMovement(this.mv, input, dt, ZION_PARAMS, onGround, body.velocity.x, body.velocity.y);
+    const s = stepMovement(this.mv, input, dt, this.def.params, onGround, body.velocity.x, body.velocity.y);
     this.mv = s;
 
     if (this.stunTimer <= 0) body.setVelocityX(s.vx);
     body.setVelocityY(s.vy);
-    body.setGravityY(ZION_PARAMS.gravity * (s.gravityScale - 1));
+    body.setGravityY(this.def.params.gravity * (s.gravityScale - 1));
 
     if (s.justJumped) this.emit('jump' satisfies PlayerEvent);
     if (s.justLanded && s.impactSpeed > HARD_LANDING) {
@@ -125,7 +126,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           victory: this.victory,
           attacking: this.attackTimer > 0,
         },
-        ZION_PARAMS,
+        this.def.params,
       ),
     );
 
@@ -136,13 +137,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private setAnimation(anim: PlayerAnimation): void {
     if (anim === this.currentAnim) return;
     this.currentAnim = anim;
-    this.play(`zion-${anim}`, true);
+    this.play(`${this.def.id}-${anim}`, true);
   }
 
   /** Quique ao pisar em um inimigo. Segurar o pulo dá um quique maior. */
   bounce(): void {
     const held = this.jumpHeld;
-    const v = ZION_PARAMS.jumpVelocity * (held ? 0.85 : 0.55);
+    const v = this.def.params.jumpVelocity * (held ? 0.85 : 0.55);
     this.arcadeBody.setVelocityY(-v);
     this.mv = { ...this.mv, jumping: held, airVy: 0, onGround: false };
   }
@@ -175,11 +176,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const body = this.arcadeBody;
     body.checkCollision.none = true;
     body.setGravityY(0);
-    body.setVelocity(0, -ZION_PARAMS.jumpVelocity * 0.75);
+    body.setVelocity(0, -this.def.params.jumpVelocity * 0.75);
     this.setCollideWorldBounds(false);
     this.setAlpha(1);
     this.currentAnim = 'dead';
-    this.play('zion-dead', true);
+    this.play(`${this.def.id}-dead`, true);
     this.emit('died' satisfies PlayerEvent);
   }
 
@@ -199,7 +200,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.placeOnGround(x, bottomY);
     this.currentAnim = 'idle';
-    this.play('zion-idle', true);
+    this.play(`${this.def.id}-idle`, true);
   }
 
   celebrate(): void {

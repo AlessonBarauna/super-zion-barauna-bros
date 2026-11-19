@@ -27,10 +27,10 @@ with sync_playwright() as pw:
     pg.on('pageerror', lambda e: errors.append(str(e)))
     pg.goto(url); pg.wait_for_timeout(1200)
 
-    # --- Menu: clicar no botão NOVO JOGO com o mouse
+    # --- Menu: clicar no botão 1 JOGADOR com o mouse
     pg.mouse.click(640, 410); pg.wait_for_timeout(1800)
     s0 = state(pg)
-    check('menu: botão NOVO JOGO inicia a partida', s0 is not None and s0['lives'] == 5 and s0['coins'] == 0, json.dumps(s0))
+    check('menu: botão 1 JOGADOR inicia a partida', s0 is not None and s0['lives'] == 5 and s0['coins'] == 0, json.dumps(s0))
     check('início: 5 vidas, 3 corações, no chão', s0['hp'] == 3 and s0['onGround'], '')
 
     # --- Altura do pulo

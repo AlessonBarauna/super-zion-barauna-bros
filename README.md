@@ -23,9 +23,9 @@ npm run preview    # serve o build
 | Pausar | `Esc` (também `P`) |
 | Tela cheia / Som | `F` / `M` |
 
-Jogador 2 (Bara, cooperativo — ainda não implementado): `J` `L` `I` `K`. O perfil já existe em `src/systems/input.ts`.
+Jogador 2 (Bara, cooperativo): `J` `L` mover · `K` correr · `I` pular · `U` poder. No menu, `1` inicia o modo individual, `2` o cooperativo e `Enter` repete o último modo usado.
 
-## Estado atual (v0.1.0 — Fases 1 a 3 do roadmap)
+## Estado atual (v0.1.0 — Fases 1 a 4 do roadmap)
 
 Jogável: menu → fase **1-1 Vila das Oliveiras** (130 blocos de largura) com Zion, câmera lateral com parallax,
 pulo variável / coyote time / jump buffer, moedas (100 = +1 vida), blocos surpresa e tijolos, espinhos, abismos,
@@ -36,7 +36,12 @@ Fase 3: **Flor de Fogo** (bloco amarelo solta o item; `X` dispara bolas que quic
 sofrer dano perde o poder), item de coração e **salvamento** em `localStorage` (versionado, com migração, cópia do
 arquivo corrompido, fases concluídas, recordes, moedas e preferência de som; o menu mostra o progresso).
 
-**Ainda não existe:** Bara e cooperativo, demais poderes, chefões, mundos 2–8, música, gamepad, seleção de mundos,
+Fase 4: **cooperativo local** com Zion e **Bara** (mais baixa, ágil e com salto mais alto; arte própria). Regras: vidas, moedas e
+pontuação são da equipe; corações e poder são individuais; a câmera acompanha o meio entre os dois e ninguém sai da tela
+nem fica para trás; a morte de um custa 1 vida e ele volta perto do parceiro (se os dois caírem, no checkpoint; tempo
+esgotado gasta uma única vida); a fase só termina quando os dois chegam à bandeira.
+
+**Ainda não existe:** demais poderes, chefões, mundos 2–8, música, gamepad, seleção de mundos,
 aplicativo Windows (Tauri). Botões do menu só existem quando a função existe.
 
 ## Arte e áudio (provisório documentado)

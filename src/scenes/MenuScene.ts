@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { OLIVEIRAS_LAYERS } from '../art/backgroundArt';
 import { GAME_HEIGHT, GAME_VERSION, GAME_WIDTH, PALETTE, SCENE_KEYS } from '../game/constants';
 import { saveManager } from '../game/saveStore';
+import type { GameMode } from '../systems/coop';
 import { createButton, UI_FONT } from '../ui/Button';
 import { ParallaxBackground } from '../ui/ParallaxBackground';
 
@@ -46,27 +47,43 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(5);
 
-    const zion = this.add.sprite(cx - 380, GAME_HEIGHT - 150, 'zion-idle-0').setScale(2.1).setOrigin(0.5, 1).setDepth(6);
+    const zion = this.add.sprite(cx - 440, GAME_HEIGHT - 150, 'zion-idle-0').setScale(2.1).setOrigin(0.5, 1).setDepth(6);
     zion.play('zion-idle');
+    const bara = this.add.sprite(cx - 300, GAME_HEIGHT - 150, 'bara-idle-0').setScale(2.1).setOrigin(0.5, 1).setDepth(6);
+    bara.play('bara-idle');
     const walker = this.add.sprite(cx + 390, GAME_HEIGHT - 150, 'cogumelo-walk-0').setScale(2).setOrigin(0.5, 1).setDepth(6);
     walker.play('cogumelo-walk');
     walker.setFlipX(true);
 
-    const start = (): void => {
+    const start = (mode: GameMode): void => {
+      saveManager.setMode(mode);
       this.scene.start(SCENE_KEYS.Game);
     };
-    createButton(this, cx, 410, 'NOVO JOGO', start).setDepth(6);
-    createButton(this, cx, 508, 'TELA CHEIA', () => this.scale.toggleFullscreen(), {
+    createButton(this, cx, 410, '1 JOGADOR', () => start('solo')).setDepth(6);
+    createButton(this, cx, 496, '2 JOGADORES', () => start('coop'), {
+      fill: Phaser.Display.Color.HexStringToColor(PALETTE.laranja).color,
+    }).setDepth(6);
+    createButton(this, cx, 572, 'TELA CHEIA', () => this.scale.toggleFullscreen(), {
       fill: Phaser.Display.Color.HexStringToColor(PALETTE.azulZion).color,
-      height: 62,
-      fontSize: 28,
+      height: 54,
+      fontSize: 24,
     }).setDepth(6);
 
+    this.add
+      .text(cx, GAME_HEIGHT - 52, 'Bara (jogador 2):  J L mover   •   K correr   •   I pular   •   U poder        Teclas 1 e 2 escolhem o modo', {
+        fontFamily: UI_FONT,
+        fontSize: '19px',
+        color: '#FFB89E',
+        stroke: PALETTE.contorno,
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(6);
     this.add
       .text(
         cx,
         GAME_HEIGHT - 22,
-        '← → / A D mover   •   Shift correr   •   Espaço pular   •   X poder   •   Esc pausa   •   F tela cheia   •   M som   •   Enter: novo jogo',
+        'Zion: ← → / A D mover   •   Shift correr   •   Espaço pular   •   X poder   •   Esc pausa   •   F tela cheia   •   M som   •   Enter: último modo',
         {
           fontFamily: UI_FONT,
           fontSize: '19px',
@@ -109,7 +126,9 @@ export class MenuScene extends Phaser.Scene {
       refreshSound();
     });
 
-    this.input.keyboard?.on('keydown-ENTER', start);
+    this.input.keyboard?.on('keydown-ENTER', () => start(saveManager.data.mode));
+    this.input.keyboard?.on('keydown-ONE', () => start('solo'));
+    this.input.keyboard?.on('keydown-TWO', () => start('coop'));
     this.input.keyboard?.on('keydown-F', () => this.scale.toggleFullscreen());
   }
 

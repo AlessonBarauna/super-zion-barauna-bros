@@ -3,13 +3,41 @@ import { PALETTE } from '../game/constants';
 import type { PlayerAnimation } from '../systems/movement';
 import { auroraSymbol, canvasTexture, circle, ellipse, fillStroke, OUT, roundRectPath, type Ctx } from './canvasArt';
 
-/** Zion Baraúna: roupa azul e verde, botas marrons, mochila, símbolo da Aurora no peito. */
+/**
+ * Personagens jogáveis desenhados em código (arte original, provisória).
+ * Zion Baraúna: roupa azul e verde, botas marrons, mochila, símbolo da Aurora no peito.
+ * Bara: mais baixa e ágil, roupa coral e turquesa, coques com laços dourados, bolsa a tiracolo.
+ */
 
 export const ZION_FRAME = { w: 64, h: 80 } as const;
 /** Deslocamento vertical do desenho dentro do quadro (folga para o topo da mecha de cabelo). */
 const DRAW_OFFSET_Y = 8;
 /** Corpo de colisão em unidades de arte (dentro do quadro). */
 export const ZION_BODY = { w: 26, h: 54, offsetX: 19, offsetY: 22 } as const;
+/** Bara é 12% menor: a base do corpo continua tocando a base do quadro (y = 76). */
+export const BARA_SCALE = 0.88;
+export const BARA_BODY = { w: 23, h: 47, offsetX: 20, offsetY: 29 } as const;
+
+export type CharacterId = 'zion' | 'bara';
+
+/** Visual de um personagem: cores e estilo. A pose/animação é compartilhada. */
+export interface Look {
+  scale: number;
+  skin: string;
+  skinShade: string;
+  hair: string;
+  shirt: string;
+  shirtShade: string;
+  shirtLight: string;
+  pants: string;
+  boot: string;
+  bootLight: string;
+  belt: string;
+  pack: string;
+  packShade: string;
+  symbol: string;
+  hairStyle: 'tuft' | 'buns';
+}
 
 interface Offset {
   dx: number;
@@ -31,13 +59,6 @@ interface Pose {
   mouth: Mouth;
 }
 
-const SKIN = '#F2C29B';
-const SKIN_SHADE = '#E0A57B';
-const HAIR = '#6A3F22';
-const PANTS = '#2F9A3B';
-const BOOT = '#7A4A28';
-const BOOT_LIGHT = '#9A6238';
-const SHIRT_SHADE = '#2467B0';
 
 function pose(partial: Partial<Pose>): Pose {
   return {
@@ -201,27 +222,27 @@ function limb(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, width: n
   ctx.stroke();
 }
 
-function boot(ctx: Ctx, x: number, y: number): void {
+function boot(ctx: Ctx, x: number, y: number, look: Look): void {
   ellipse(ctx, x + 3, y - 2, 10, 6.2);
-  fillStroke(ctx, BOOT, 2.4);
+  fillStroke(ctx, look.boot, 2.4);
   ellipse(ctx, x + 5, y - 4, 4.5, 2.2);
-  ctx.fillStyle = BOOT_LIGHT;
+  ctx.fillStyle = look.bootLight;
   ctx.fill();
 }
 
-function leg(ctx: Ctx, hipX: number, hipY: number, o: Offset, floorY: number): void {
+function leg(ctx: Ctx, hipX: number, hipY: number, o: Offset, floorY: number, look: Look): void {
   const fx = hipX + o.dx;
   const fy = floorY + o.dy - 6;
-  limb(ctx, hipX, hipY, fx, fy, 8, PANTS);
-  boot(ctx, fx, floorY + o.dy);
+  limb(ctx, hipX, hipY, fx, fy, 8, look.pants);
+  boot(ctx, fx, floorY + o.dy, look);
 }
 
-function arm(ctx: Ctx, sx: number, sy: number, o: Offset): void {
+function arm(ctx: Ctx, sx: number, sy: number, o: Offset, look: Look): void {
   const hx = sx + 3 + o.dx;
   const hy = sy + 11 + o.dy;
-  limb(ctx, sx, sy, hx, hy, 7, PALETTE.azulZion);
+  limb(ctx, sx, sy, hx, hy, 7, look.shirt);
   circle(ctx, hx, hy + 1, 4.4);
-  fillStroke(ctx, SKIN, 2.2);
+  fillStroke(ctx, look.skin, 2.2);
 }
 
 function drawEyes(ctx: Ctx, hx: number, hy: number, eyes: Eyes): void {
@@ -291,8 +312,50 @@ function drawMouth(ctx: Ctx, mx: number, my: number, mouth: Mouth): void {
   }
 }
 
-export function drawZion(ctx: Ctx, p: Pose): void {
+export const ZION_LOOK: Look = {
+  scale: 1,
+  skin: '#F2C29B',
+  skinShade: '#E0A57B',
+  hair: '#6A3F22',
+  shirt: PALETTE.azulZion,
+  shirtShade: '#2467B0',
+  shirtLight: '#5BA8EE',
+  pants: '#2F9A3B',
+  boot: '#7A4A28',
+  bootLight: '#9A6238',
+  belt: PALETTE.verdeBarauna,
+  pack: PALETTE.laranja,
+  packShade: '#C9631F',
+  symbol: PALETTE.laranja,
+  hairStyle: 'tuft',
+};
+
+export const BARA_LOOK: Look = {
+  scale: BARA_SCALE,
+  skin: '#C98B5E',
+  skinShade: '#B2724A',
+  hair: '#2E1B3F',
+  shirt: '#EF6F5E',
+  shirtShade: '#C84E45',
+  shirtLight: '#FF9A86',
+  pants: '#1F9C9A',
+  boot: '#5A3A68',
+  bootLight: '#7A5590',
+  belt: PALETTE.creme,
+  pack: '#8E5BD0',
+  packShade: '#6E3FB0',
+  symbol: '#C84E45',
+  hairStyle: 'buns',
+};
+
+export const LOOKS: Record<CharacterId, Look> = { zion: ZION_LOOK, bara: BARA_LOOK };
+
+export function drawCharacter(ctx: Ctx, p: Pose, look: Look): void {
   ctx.save();
+  // Escala ancorada na base do quadro, para que os pés continuem alinhados ao corpo de colisão.
+  ctx.translate(ZION_FRAME.w / 2, ZION_FRAME.h);
+  ctx.scale(look.scale, look.scale);
+  ctx.translate(-ZION_FRAME.w / 2, -ZION_FRAME.h);
   ctx.translate(0, DRAW_OFFSET_Y);
   const top = p.bob + p.squash;
   const lx = p.lean;
@@ -302,48 +365,56 @@ export function drawZion(ctx: Ctx, p: Pose): void {
   const headCy = 19 + top;
 
   // braço de trás
-  arm(ctx, 26 + lx, 37 + top, p.armB);
+  arm(ctx, 26 + lx, 37 + top, p.armB, look);
 
-  // mochila de aventura
+  // mochila (Zion) ou bolsa (Bara)
   roundRectPath(ctx, 10 + lx, 32 + top, 16, 20, 6);
-  fillStroke(ctx, PALETTE.laranja, 2.4);
+  fillStroke(ctx, look.pack, 2.4);
   roundRectPath(ctx, 12.5 + lx, 40 + top, 11, 8, 3);
-  fillStroke(ctx, '#C9631F', 2);
+  fillStroke(ctx, look.packShade, 2);
   circle(ctx, 18 + lx, 44 + top, 1.3);
   ctx.fillStyle = PALETTE.douradoAurora;
   ctx.fill();
 
   // pernas (atrás do tronco)
-  leg(ctx, 28 + lx * 0.4, hipY, p.legB, floorY);
-  leg(ctx, 38 + lx * 0.4, hipY, p.legF, floorY);
+  leg(ctx, 28 + lx * 0.4, hipY, p.legB, floorY, look);
+  leg(ctx, 38 + lx * 0.4, hipY, p.legF, floorY, look);
 
   // tronco
   roundRectPath(ctx, 21 + lx, 31 + top, 24, 23, 8);
-  fillStroke(ctx, PALETTE.azulZion, 2.6);
+  fillStroke(ctx, look.shirt, 2.6);
   ctx.save();
   roundRectPath(ctx, 21 + lx, 31 + top, 24, 23, 8);
   ctx.clip();
-  ctx.fillStyle = SHIRT_SHADE;
+  ctx.fillStyle = look.shirtShade;
   ctx.fillRect(21 + lx, 46 + top, 24, 8);
-  ctx.fillStyle = '#5BA8EE';
+  ctx.fillStyle = look.shirtLight;
   ctx.fillRect(21 + lx, 31 + top, 24, 3);
   ctx.restore();
-  // cinto verde
+  // cinto
   roundRectPath(ctx, 21 + lx, 47 + top, 24, 6, 3);
-  fillStroke(ctx, PALETTE.verdeBarauna, 2.2);
+  fillStroke(ctx, look.belt, 2.2);
   // símbolo dourado da Aurora
   circle(ctx, 34 + lx, 39 + top, 6.2);
   fillStroke(ctx, PALETTE.douradoAurora, 2);
-  auroraSymbol(ctx, 34 + lx, 39 + top, 4.6, PALETTE.laranja, 6);
+  auroraSymbol(ctx, 34 + lx, 39 + top, 4.6, look.symbol, 6);
 
   // braço da frente
-  arm(ctx, 41 + lx, 37 + top, p.armF);
+  arm(ctx, 41 + lx, 37 + top, p.armF, look);
+
+  if (look.hairStyle === 'buns') {
+    // coques atrás da cabeça
+    circle(ctx, headCx - 9, headCy - 14, 7);
+    fillStroke(ctx, look.hair, 2.4);
+    circle(ctx, headCx + 9, headCy - 15, 7);
+    fillStroke(ctx, look.hair, 2.4);
+  }
 
   // cabeça
   circle(ctx, headCx - 14, headCy + 3, 4.2); // orelha
-  fillStroke(ctx, SKIN_SHADE, 2.2);
+  fillStroke(ctx, look.skinShade, 2.2);
   circle(ctx, headCx, headCy, 15.5);
-  fillStroke(ctx, SKIN, 2.6);
+  fillStroke(ctx, look.skin, 2.6);
 
   // cabelo
   ctx.beginPath();
@@ -351,27 +422,44 @@ export function drawZion(ctx: Ctx, p: Pose): void {
   ctx.quadraticCurveTo(headCx + 8, headCy - 9, headCx + 2, headCy - 7);
   ctx.quadraticCurveTo(headCx - 7, headCy - 11, headCx - 15, headCy - 3);
   ctx.closePath();
-  fillStroke(ctx, HAIR, 2.4);
-  // mecha rebelde
-  ctx.beginPath();
-  ctx.moveTo(headCx + 2, headCy - 15);
-  ctx.quadraticCurveTo(headCx + 8, headCy - 23, headCx + 14, headCy - 17);
-  ctx.quadraticCurveTo(headCx + 8, headCy - 17, headCx + 6, headCy - 13);
-  ctx.closePath();
-  fillStroke(ctx, HAIR, 2.2);
+  fillStroke(ctx, look.hair, 2.4);
 
-  // faixa verde com gema dourada
-  ctx.save();
-  circle(ctx, headCx, headCy, 15.2);
-  ctx.clip();
-  ctx.fillStyle = PALETTE.verdeBarauna;
-  ctx.fillRect(headCx - 16, headCy - 8, 32, 5.5);
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 1.8;
-  ctx.strokeRect(headCx - 16, headCy - 8, 32, 5.5);
-  ctx.restore();
-  circle(ctx, headCx + 10, headCy - 5.2, 2.6);
-  fillStroke(ctx, PALETTE.douradoAurora, 1.6);
+  if (look.hairStyle === 'tuft') {
+    // mecha rebelde
+    ctx.beginPath();
+    ctx.moveTo(headCx + 2, headCy - 15);
+    ctx.quadraticCurveTo(headCx + 8, headCy - 23, headCx + 14, headCy - 17);
+    ctx.quadraticCurveTo(headCx + 8, headCy - 17, headCx + 6, headCy - 13);
+    ctx.closePath();
+    fillStroke(ctx, look.hair, 2.2);
+
+    // faixa verde com gema dourada
+    ctx.save();
+    circle(ctx, headCx, headCy, 15.2);
+    ctx.clip();
+    ctx.fillStyle = PALETTE.verdeBarauna;
+    ctx.fillRect(headCx - 16, headCy - 8, 32, 5.5);
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.8;
+    ctx.strokeRect(headCx - 16, headCy - 8, 32, 5.5);
+    ctx.restore();
+    circle(ctx, headCx + 10, headCy - 5.2, 2.6);
+    fillStroke(ctx, PALETTE.douradoAurora, 1.6);
+  } else {
+    // franja curta e laços dourados nos coques
+    ctx.beginPath();
+    ctx.moveTo(headCx - 13, headCy - 6);
+    ctx.quadraticCurveTo(headCx - 4, headCy - 1, headCx + 3, headCy - 8);
+    ctx.quadraticCurveTo(headCx + 9, headCy - 2, headCx + 14, headCy - 8);
+    ctx.lineTo(headCx + 14, headCy - 12);
+    ctx.lineTo(headCx - 13, headCy - 12);
+    ctx.closePath();
+    fillStroke(ctx, look.hair, 2.2);
+    for (const bx of [headCx - 9, headCx + 9]) {
+      roundRectPath(ctx, bx - 4.5, headCy - 11.5, 9, 3.6, 1.8);
+      fillStroke(ctx, PALETTE.douradoAurora, 1.6);
+    }
+  }
 
   drawEyes(ctx, headCx, headCy, p.eyes);
   // bochecha
@@ -382,25 +470,28 @@ export function drawZion(ctx: Ctx, p: Pose): void {
   ctx.restore();
 }
 
-export function zionFrameKey(anim: PlayerAnimation, i: number): string {
-  return `zion-${anim}-${i}`;
+export function characterFrameKey(id: CharacterId, anim: PlayerAnimation, i: number): string {
+  return `${id}-${anim}-${i}`;
 }
 
-export function createZionTextures(scene: Phaser.Scene): void {
-  for (const [anim, def] of Object.entries(ZION_ANIMS) as Array<[PlayerAnimation, (typeof ZION_ANIMS)[PlayerAnimation]]>) {
+type AnimEntry = [PlayerAnimation, (typeof ZION_ANIMS)[PlayerAnimation]];
+
+export function createCharacterTextures(scene: Phaser.Scene, id: CharacterId): void {
+  const look = LOOKS[id];
+  for (const [anim, def] of Object.entries(ZION_ANIMS) as AnimEntry[]) {
     for (let i = 0; i < def.frames; i++) {
-      canvasTexture(scene, zionFrameKey(anim, i), ZION_FRAME.w, ZION_FRAME.h, (ctx) => drawZion(ctx, def.pose(i)));
+      canvasTexture(scene, characterFrameKey(id, anim, i), ZION_FRAME.w, ZION_FRAME.h, (ctx) => drawCharacter(ctx, def.pose(i), look));
     }
   }
 }
 
-export function createZionAnimations(scene: Phaser.Scene): void {
-  for (const [anim, def] of Object.entries(ZION_ANIMS) as Array<[PlayerAnimation, (typeof ZION_ANIMS)[PlayerAnimation]]>) {
-    const key = `zion-${anim}`;
+export function createCharacterAnimations(scene: Phaser.Scene, id: CharacterId): void {
+  for (const [anim, def] of Object.entries(ZION_ANIMS) as AnimEntry[]) {
+    const key = `${id}-${anim}`;
     if (scene.anims.exists(key)) continue;
     scene.anims.create({
       key,
-      frames: Array.from({ length: def.frames }, (_, i) => ({ key: zionFrameKey(anim, i) })),
+      frames: Array.from({ length: def.frames }, (_, i) => ({ key: characterFrameKey(id, anim, i) })),
       frameRate: def.frameRate,
       repeat: def.repeat,
     });

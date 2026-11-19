@@ -165,6 +165,13 @@ describe('SaveManager', () => {
     expect(roundTrip(st).data.settings.muted).toBe(true);
   });
 
+  it('modo de jogo (solo/cooperativo) é persistido', () => {
+    const st = new MemoryStorage();
+    expect(roundTrip(st).data.mode).toBe('solo');
+    roundTrip(st).setMode('coop');
+    expect(roundTrip(st).data.mode).toBe('coop');
+  });
+
   it('armazenamento que lança erro não derruba o jogo', () => {
     const broken: StorageLike = {
       getItem: () => {

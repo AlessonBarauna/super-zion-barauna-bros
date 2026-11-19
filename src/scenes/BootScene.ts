@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { createBackgroundTextures } from '../art/backgroundArt';
 import { createEnemyAnimations, createEnemyTextures } from '../art/enemyArt';
 import { createWorldTextures } from '../art/worldArt';
-import { createZionAnimations, createZionTextures } from '../art/zionArt';
+import { createCharacterAnimations, createCharacterTextures } from '../art/characterArt';
 import { SCENE_KEYS } from '../game/constants';
 
 /** Gera todas as texturas (arte vetorial original) e as animações, depois abre o menu. */
@@ -14,9 +14,9 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     createBackgroundTextures(this);
     createWorldTextures(this);
-    createZionTextures(this);
+    for (const id of ['zion', 'bara'] as const) createCharacterTextures(this, id);
     createEnemyTextures(this);
-    createZionAnimations(this);
+    for (const id of ['zion', 'bara'] as const) createCharacterAnimations(this, id);
     createEnemyAnimations(this);
     this.scene.start(SCENE_KEYS.Menu);
   }

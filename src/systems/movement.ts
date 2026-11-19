@@ -87,6 +87,25 @@ export function scaleMovementParams(p: MovementParams, k: number): MovementParam
 
 export const ZION_PARAMS: MovementParams = scaleMovementParams(BASE_ZION_PARAMS, PX);
 
+/**
+ * Bara: mais ágil (acelera e freia mais rápido, controle melhor no ar) e salta mais alto.
+ * Gravidade igual à do Zion, pois o mundo tem uma única gravidade. Corre um pouco menos,
+ * mas o salto mais longo compensa: qualquer vão que o Zion cruza, a Bara também cruza.
+ */
+export const BASE_BARA_PARAMS: MovementParams = {
+  ...BASE_ZION_PARAMS,
+  walkSpeed: 230,
+  runSpeed: 350,
+  groundAccel: 2200,
+  groundDecel: 3200,
+  airAccel: 1600,
+  airDecel: 800,
+  turnBoost: 2.6,
+  jumpVelocity: 900,
+};
+
+export const BARA_PARAMS: MovementParams = scaleMovementParams(BASE_BARA_PARAMS, PX);
+
 export const NEUTRAL_INPUT: MovementInput = {
   moveX: 0,
   run: false,
