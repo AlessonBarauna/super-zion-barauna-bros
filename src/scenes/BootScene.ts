@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { createBackgroundTextures } from '../art/backgroundArt';
 import { createCreatureAnimations, createCreatureTextures } from '../art/creatureArt';
 import { createEnemyAnimations, createEnemyTextures } from '../art/enemyArt';
+import { createThemeTextures } from '../art/themeArt';
 import { createWorldTextures } from '../art/worldArt';
 import { createCharacterAnimations, createCharacterTextures } from '../art/characterArt';
 import { SCENE_KEYS } from '../game/constants';
@@ -15,6 +16,7 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     createBackgroundTextures(this);
     createWorldTextures(this);
+    createThemeTextures(this);
     for (const id of ['zion', 'bara'] as const) createCharacterTextures(this, id);
     createEnemyTextures(this);
     createCreatureTextures(this);

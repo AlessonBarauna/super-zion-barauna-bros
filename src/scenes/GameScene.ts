@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { OLIVEIRAS_LAYERS } from '../art/backgroundArt';
+import { layersForTheme } from '../art/backgroundArt';
 import { CogumeloSombrio, OURICO_CONFIG } from '../entities/enemies/CogumeloSombrio';
 import { CorvoUmbral } from '../entities/enemies/CorvoUmbral';
 import type { Enemy } from '../entities/enemies/Enemy';
@@ -130,14 +130,9 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, worldW, worldH, true, true, true, false);
 
     const theme = worldInfo(this.level.world);
-    this.bg = new ParallaxBackground(this, OLIVEIRAS_LAYERS);
+    this.bg = new ParallaxBackground(this, layersForTheme(this.level.theme));
     this.bg.setTint(theme.bgTint);
     this.built = buildLevel(this, this.level, this.grid);
-    if (theme.tileTint !== 0xffffff) {
-      for (const tile of this.built.solids.getChildren() as Phaser.GameObjects.Image[]) {
-        if (tile.getData('kind') === 'ground') tile.setTint(theme.tileTint);
-      }
-    }
     this.checkpoint = { ...this.built.spawn };
 
     this.dustEmitter = this.add
