@@ -127,7 +127,17 @@ export interface PlayerControls extends MovementInput {
   powerPressed: boolean;
   /** ↓ apertado neste quadro (entrar em cano ou porta). */
   downPressed?: boolean;
+  /** ↓ segurado (abaixar). */
+  downHeld?: boolean;
 }
+
+/** Agachar: só no chão, enquanto ↓ está segurado; sem espaço para levantar, continua agachado. */
+export function nextCrouch(wasCrouching: boolean, onGround: boolean, downHeld: boolean, headBlocked: boolean): boolean {
+  return onGround && (downHeld || (wasCrouching && headBlocked));
+}
+
+/** Altura relativa do corpo agachado. */
+export const CROUCH_SCALE_Y = 0.72;
 
 export function createMovementState(): MovementState {
   return {

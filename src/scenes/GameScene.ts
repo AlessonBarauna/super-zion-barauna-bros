@@ -327,8 +327,8 @@ export class GameScene extends Phaser.Scene {
   private updateWarps(): void {
     if (this.warping || this.finished || this.built.warps.length === 0) return;
     for (const p of this.players) {
-      if (p.dead || p.victory || !p.downPressed || !p.onGround) continue;
-      const bottom = p.arcadeBody.bottom;
+      if (p.dead || p.victory || !p.downPressed) continue;
+      const bottom = p.feetY;
       const warp = this.built.warps.find((w) => Math.abs(p.x - w.x) <= w.halfW && Math.abs(bottom - w.feetY) <= 8);
       if (warp) {
         this.startWarp(warp);

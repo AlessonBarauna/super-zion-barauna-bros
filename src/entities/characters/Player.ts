@@ -4,7 +4,9 @@ import { DEPTH, PX } from '../../game/constants';
 import type { ControlSource } from '../../systems/input';
 import {
   createMovementState,
+  CROUCH_SCALE_Y,
   deriveAnimation,
+  nextCrouch,
   NEUTRAL_INPUT,
   stepMovement,
   type MovementState,
@@ -43,6 +45,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private sizeScale = 1;
   /** ↓ foi apertado neste quadro (lido pela cena para entrar em canos e portas). */
   downPressed = false;
+  /** Está agachado (corpo mais baixo, não anda). */
+  crouching = false;
+  /** Altura dos pés no início do quadro (antes de agachar/levantar), para entrar em canos e portas. */
+  feetY = 0;
+  private bodyCrouched = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -102,6 +109,30 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setScale(target);
     this.placeOnGround(this.x, bottom);
     body.setVelocity(vx, vy);
+    this.bodyCrouched = false;
+    this.applyCrouchBody();
+  }
+
+  /** Agachado: o corpo físico encolhe por cima (a base fica no mesmo lugar). */
+  private applyCrouchBody(): void {
+    if (this.bodyCrouched === this.crouching) return;
+    const body = this.arcadeBody;
+    const h = this.def.body.h * PX;
+    const offY = this.def.body.offsetY * PX;
+    const crouchH = h * CROUCH_SCALE_Y;
+    body.setSize(this.def.body.w * PX, this.crouching ? crouchH : h, false);
+    body.setOffset(this.def.body.offsetX * PX, this.crouching ? offY + (h - crouchH) : offY);
+    this.bodyCrouched = this.crouching;
+  }
+
+  /** Há algo sólido onde a cabeça ficaria ao levantar? */
+  private headBlocked(): boolean {
+    const body = this.arcadeBody;
+    const standH = this.def.body.h * PX * this.sizeScale;
+    const extra = standH - body.height;
+    if (extra <= 1) return false;
+    const hits = this.scene.physics.overlapRect(body.x + 2, body.bottom - standH, body.width - 4, extra - 1, false, true);
+    return hits.length > 0;
   }
 
   /** Move o jogador para outro ponto sem perder tamanho, poderes nem vida. */
@@ -127,10 +158,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const body = this.arcadeBody;
     this.vitality.update(dt);
     this.powers.update(dt);
-    this.applySize();
     const polled = this.controls.poll();
+    const groundedBefore = this.onGround;
+    this.feetY = this.arcadeBody.bottom;
+    const wasCrouching = this.crouching;
+    this.crouching = !this.locked && !this.dead && nextCrouch(wasCrouching, this.onGround, polled.downHeld === true, wasCrouching && this.headBlocked());
+    this.applySize();
+    this.applyCrouchBody();
     this.jumpHeld = polled.jumpHeld;
-    this.downPressed = polled.downPressed === true && !this.locked;
+    this.downPressed = polled.downPressed === true && !this.locked && groundedBefore;
 
     if (this.dead) {
       this.setAlpha(1);
@@ -141,7 +177,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.stunTimer = Math.max(0, this.stunTimer - dt);
     this.attackTimer = Math.max(0, this.attackTimer - dt);
 
-    const input = this.locked || this.stunTimer > 0 ? NEUTRAL_INPUT : polled;
+    const input = this.locked || this.stunTimer > 0 ? NEUTRAL_INPUT : this.crouching ? { ...polled, moveX: 0 as const, run: false } : polled;
     if (!this.locked && this.stunTimer <= 0 && polled.powerPressed && this.powers.canFire(this.activeShots)) {
       this.powers.registerShot();
       this.attackTimer = ATTACK_ANIM_TIME;
@@ -164,7 +200,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setFlipX(s.facing === -1);
     this.setAnimation(
-      deriveAnimation(
+      this.crouching && this.stunTimer <= 0 ? 'land' : deriveAnimation(
         {
           onGround,
           vx: body.velocity.x,
@@ -234,6 +270,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   respawn(x: number, bottomY: number): void {
+    this.crouching = false;
     this.dead = false;
     this.locked = false;
     this.victory = false;

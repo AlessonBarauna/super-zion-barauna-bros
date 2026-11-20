@@ -1,3 +1,4 @@
+import { nextCrouch } from '../src/systems/movement';
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../src/levels';
 import { createMovementState, NEUTRAL_INPUT, stepMovement, ZION_PARAMS, BARA_PARAMS, type MovementState } from '../src/systems/movement';
@@ -115,5 +116,15 @@ describe('fruta nas fases', () => {
       expect(grow, level.id).toBeDefined();
       expect(grow!.x).toBeLessThan(15);
     }
+  });
+});
+
+describe('agachar', () => {
+  it('só agacha no chão com ↓ segurado e continua agachado sem espaço para levantar', () => {
+    expect(nextCrouch(false, true, true, false)).toBe(true);
+    expect(nextCrouch(false, false, true, false)).toBe(false);
+    expect(nextCrouch(true, true, false, false)).toBe(false);
+    expect(nextCrouch(true, true, false, true)).toBe(true);
+    expect(nextCrouch(true, false, false, true)).toBe(false);
   });
 });

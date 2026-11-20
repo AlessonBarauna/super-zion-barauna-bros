@@ -79,6 +79,7 @@ export class KeyboardControls implements ControlSource {
       jumpHeld: this.jump.some((k) => k.isDown),
       powerPressed: this.power.some((k) => Phaser.Input.Keyboard.JustDown(k)),
       downPressed: this.down.some((k) => Phaser.Input.Keyboard.JustDown(k)),
+      downHeld: this.down.some((k) => k.isDown),
     };
   }
 }
@@ -108,7 +109,7 @@ export class GamepadControls implements ControlSource {
     const powerPressed = cmd.power && !this.prevPower;
     this.prevJump = cmd.jump;
     this.prevPower = cmd.power;
-    return { moveX: cmd.moveX, run: cmd.run, jumpPressed, jumpHeld: cmd.jump, powerPressed, downPressed };
+    return { moveX: cmd.moveX, run: cmd.run, jumpPressed, jumpHeld: cmd.jump, powerPressed, downPressed, downHeld: cmd.down };
   }
 }
 
@@ -126,6 +127,7 @@ export class CombinedControls implements ControlSource {
       jumpHeld: polled.some((p) => p.jumpHeld),
       powerPressed: polled.some((p) => p.powerPressed),
       downPressed: polled.some((p) => p.downPressed === true),
+      downHeld: polled.some((p) => p.downHeld === true),
     };
   }
 }

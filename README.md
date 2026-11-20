@@ -20,6 +20,7 @@ npm run preview    # serve o build
 | Mover | `A` `D` ou `←` `→` |
 | Pular (segure = pulo mais alto) | `Espaço` (também `↑` / `W`) |
 | Pulo duplo | aperte pular de novo no ar |
+| Abaixar | segure `↓` / `S` (P2: `O`; controle: direcional para baixo) |
 | Entrar em cano/porta | `↓` / `S` (P2: `O`; controle: direcional para baixo) |
 | Correr | `Shift` |
 | Pausar | `Esc` (também `P`) |
