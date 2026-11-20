@@ -73,7 +73,7 @@ export class MenuScene extends Phaser.Scene {
     }).setDepth(6);
 
     this.add
-      .text(cx, GAME_HEIGHT - 52, 'Bara (jogador 2):  J L mover   •   K correr   •   I pular   •   U poder        Teclas 1 e 2 escolhem o modo', {
+      .text(cx, GAME_HEIGHT - 52, 'Bara (jogador 2):  J L mover  •  K correr  •  I pular  •  O abaixar  •  U poder      Teclas 1 e 2 escolhem o modo', {
         fontFamily: UI_FONT,
         fontSize: '19px',
         color: '#FFB89E',
@@ -86,7 +86,7 @@ export class MenuScene extends Phaser.Scene {
       .text(
         cx,
         GAME_HEIGHT - 22,
-        'Zion: ← → / A D mover   •   Shift correr   •   Espaço pular   •   X poder   •   Esc pausa   •   F tela cheia   •   M som   •   Enter: último modo',
+        'Zion: ← → mover  •  Shift correr  •  Espaço pular (2x no ar)  •  ↓ abaixar / entrar  •  X poder  •  Esc pausa  •  F tela cheia  •  M som',
         {
           fontFamily: UI_FONT,
           fontSize: '19px',

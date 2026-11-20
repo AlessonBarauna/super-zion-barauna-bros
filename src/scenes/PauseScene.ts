@@ -38,6 +38,16 @@ export class PauseScene extends Phaser.Scene {
       fontSize: 28,
     }).setDepth(DEPTH.overlay);
 
+    this.add
+      .text(
+        cx,
+        600,
+        'Zion: ← → mover  •  Shift correr  •  Espaço pular (2x no ar)  •  ↓ abaixar / entrar  •  X poder\nBara: J L mover  •  K correr  •  I pular  •  O abaixar  •  U poder',
+        { fontFamily: UI_FONT, fontSize: '20px', align: 'center', lineSpacing: 6, color: PALETTE.creme, stroke: PALETTE.contorno, strokeThickness: 4 },
+      )
+      .setOrigin(0.5)
+      .setDepth(DEPTH.overlay);
+
     this.input.keyboard?.on('keydown-P', resume);
     this.input.keyboard?.on('keydown-ESC', resume);
   }
