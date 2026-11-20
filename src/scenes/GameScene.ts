@@ -172,12 +172,12 @@ export class GameScene extends Phaser.Scene {
         this.puff(player.x, player.arcadeBody.bottom, 3);
       });
       player.on('airjump', () => {
-        this.sfx.play('jump');
+        this.sfx.play('airjump');
         this.puff(player.x, player.arcadeBody.bottom, 5);
         this.sparkEmitter.explode(4, player.x, player.arcadeBody.bottom);
       });
       player.on('grow', () => {
-        this.sfx.play('powerup');
+        this.sfx.play('grow');
         this.sparkEmitter.explode(14, player.x, player.y);
       });
       player.on('land', () => {
@@ -237,6 +237,7 @@ export class GameScene extends Phaser.Scene {
           this.cameras.main.shake(260, 0.008);
         },
         onDefeated: () => this.onBossDefeated(),
+        onSfx: (name) => this.sfx.play(name),
       }, { widthTiles: this.level.widthTiles, groundRow: this.level.groundRow });
     }
 
@@ -335,7 +336,7 @@ export class GameScene extends Phaser.Scene {
   private startWarp(warp: WarpPoint): void {
     this.warping = true;
     const team = this.players.filter((p) => !p.dead && !p.victory);
-    this.sfx.play('powerup');
+    this.sfx.play('warp');
     for (const p of team) {
       p.locked = true;
       p.arcadeBody.setVelocity(0, 0);
@@ -715,7 +716,7 @@ export class GameScene extends Phaser.Scene {
 
   private onBossDefeated(): void {
     this.progress.addScore(BOSS_SCORE);
-    this.sfx.play('win');
+    this.sfx.play('bossdown');
     this.cameras.main.flash(300, 255, 240, 180);
     this.time.delayedCall(1800, () => {
       this.goalOpen = true;
