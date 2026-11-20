@@ -29,6 +29,8 @@ interface PlayerWidgets {
   hearts: Phaser.GameObjects.Image[];
   powerIcon: Phaser.GameObjects.Image;
   portrait: Phaser.GameObjects.Image;
+  /** Corações do quadro anterior (para animar ganho e perda). */
+  prevHp?: number;
 }
 
 /** Posição do painel do jogador 2 no HUD cooperativo (entre a pontuação e o tempo). */
@@ -134,7 +136,36 @@ export class UIScene extends Phaser.Scene {
         heart.setTexture(i < player.hp ? 'heart-full' : 'heart-empty');
         heart.setVisible(i < player.maxHp);
       });
+      this.animateHearts(w, player);
     });
+  }
+
+  /** Coração novo "pula" (ao crescer ou curar) e o perdido treme; sem animação no primeiro quadro nem na morte. */
+  private animateHearts(w: PlayerWidgets, player: PlayerHud): void {
+    const prev = w.prevHp;
+    w.prevHp = player.hp;
+    if (prev === undefined || player.dead || prev === player.hp) return;
+    const lo = Math.min(prev, player.hp);
+    const hi = Math.max(prev, player.hp);
+    for (let i = lo; i < hi; i++) {
+      const heart = w.hearts[i];
+      if (!heart || !heart.visible) continue;
+      this.tweens.killTweensOf(heart);
+      const base = heart.getData('baseScale') as number | undefined ?? heart.scaleX;
+      heart.setData('baseScale', base);
+      heart.setScale(base);
+      if (player.hp > prev) {
+        this.tweens.add({ targets: heart, scale: base * 1.9, duration: 170, yoyo: true, ease: 'Back.easeOut', repeat: 1, onComplete: () => heart.setScale(base) });
+        const plus = this.add
+          .text(heart.x, heart.y - 22, '+1', { fontFamily: UI_FONT, fontStyle: 'bold', fontSize: '22px', color: '#FFE066', stroke: PALETTE.contorno, strokeThickness: 5 })
+          .setOrigin(0.5)
+          .setDepth(DEPTH.hud);
+        this.tweens.add({ targets: plus, y: plus.y - 26, alpha: 0, duration: 800, onComplete: () => plus.destroy() });
+      } else {
+        const x0 = heart.x;
+        this.tweens.add({ targets: heart, x: x0 + 5, duration: 45, yoyo: true, repeat: 4, onComplete: () => heart.setX(x0) });
+      }
+    }
   }
 
   private intro(id: string, name: string): void {

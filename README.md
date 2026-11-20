@@ -101,6 +101,7 @@ Princípios: lógica pura separada do Phaser (testável em Node); fases orientad
 ## Novidades (canos, salas secretas e crescimento)
 - O personagem começa **pequeno** (1 coração) e cresce com a **Fruta de Baraúna** (bloco perto do início de toda fase).
 - **Pulo duplo** para os dois personagens.
+- No HUD, o coração novo (ao crescer ou curar) dá um pulo com "+1" e o coração perdido treme. Teste: `tools/visual/scenarios_hud_hearts.py`.
 - **Canos** decorativos e entráveis (↓ no topo) levam a **cavernas secretas** cheias de moedas; **portas de casas** levam a salas com presentes. Cada sala tem saída de volta à fase.
 - Blocos e tijolos em alturas variadas (linhas 3 a 6).
 - Testes de navegador: `tools/visual/scenarios_pipes.py` (use `?renderer=canvas&level=1-1`).
