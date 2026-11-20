@@ -1,4 +1,4 @@
-import sys, json, time
+import sys, json, time, os
 from playwright.sync_api import sync_playwright
 
 url = sys.argv[1]
@@ -38,7 +38,7 @@ with sync_playwright() as pw:
         pg.evaluate(f"(() => {{ const s=window.__ZION__.game.scene.getScene('GameScene'); if ('{sys.argv[5] if len(sys.argv) > 5 else ''}'==='noenemies') s.enemies.splice(0).forEach(e=>e.destroy()); s.player.placeOnGround({start_col}*60, 540); s.player.arcadeBody.setVelocity(0,0); s.cameras.main.setScroll({start_col}*60-400, 0); return null; }})()")
         pg.wait_for_timeout(600)
     kb.down('ArrowRight'); kb.down('Shift')
-    jump_until = 0
+    jump_until = 0; dj = False; jstart = None; phase = 3
     t0 = time.time(); last_shot = t0; shots = 0
     maxx = 0; deaths = 0; death_at = []; trace = []; traced = False; prev_dead = False; finished = False
     while time.time() - t0 < secs:
@@ -46,6 +46,8 @@ with sync_playwright() as pw:
         if not s: time.sleep(0.05); continue
         st = s['st']; now = time.time()
         maxx = max(maxx, st['x'])
+        if os.environ.get('BOT_LOG') and int((now - t0) * 2) != getattr(sys.modules[__name__], '_lastlog', -1):
+            _lastlog = int((now - t0) * 2); print('log', round(now - t0, 1), 'x', round(st['x']), 'y', round(st['y']), 'hp', st['hp'], 'chao', s['onGround'], 'ponte', round((s['bridge'] or {}).get('mx') or 0), flush=True)
         trace.append((round(now - t0, 2), round(st['x']), round(st['y']), round(st['vx']), round(st['vy']), s['onGround'], round(br_left) if (br_left := (s['bridge'] or {}).get('mx')) else None, st['hp']))
         trace[:] = trace[-40:]
         if st['dead'] and not prev_dead:
@@ -87,7 +89,16 @@ with sync_playwright() as pw:
         if s['onGround'] and danger and now > jump_until:
             kb.down('Space'); jump_until = now + 0.55
             hold_release = now + 0.42
-        if now > jump_until - 0.13 and now <= jump_until + 0.05:
+            # pulo duplo para vãos e espinhos (como um jogador faria); inimigos e paredes: pulo simples
+            dj = ((s['gap'] is not None and s['gap'] <= 2) or any(40 < d < 170 for d in s['sp'])) and not any(70 < d < 190 for d in s['en'])
+            jstart = now; phase = 0
+        if dj and jstart is not None:
+            el = now - jstart
+            if phase == 0 and el >= 0.26: kb.up('Space'); phase = 1
+            elif phase == 1 and el >= 0.30 and not s['onGround']: kb.down('Space'); phase = 2
+            elif phase == 2 and el >= 0.58: kb.up('Space'); phase = 3
+            elif phase == 1 and el >= 0.45: phase = 3
+        elif now > jump_until - 0.13 and now <= jump_until + 0.05:
             kb.up('Space')
         if now - last_shot > 7 and shots < 8:
             pg.screenshot(path=f'/home/claude/validation/shots/{tag}_{shots}.png'); shots += 1; last_shot = now

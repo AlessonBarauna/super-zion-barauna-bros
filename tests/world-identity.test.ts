@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { THEME_DECOR } from '../src/art/themeArt';
 import { layersForTheme } from '../src/art/backgroundArt';
-import { WORLDS } from '../src/levels/generator';
+import { WORLDS, generateLevel } from '../src/levels/generator';
 import { LEVELS } from '../src/levels/index';
 
 const stage = (w: number, s: number) => LEVELS[`${w}-${s}`]!;
@@ -29,5 +29,36 @@ describe('identidade e dificuldade dos mundos', () => {
 
   it('a fase 1-1 tem mais obstáculos que antes (pares de espinhos além dos originais)', () => {
     expect(stage(1, 1).spikes.length).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe('justiça das fases geradas', () => {
+  const landingsOf = (ground: Array<{ from: number; to: number }>): number[] => {
+    const g = [...ground].sort((a, b) => a.from - b.from);
+    return g.flatMap((seg, i) => (g[i - 1] && seg.from > g[i - 1]!.to + 1 ? [seg.from] : []));
+  };
+
+  it('nenhum inimigo de chão nos 5 blocos depois de um vão ou ponte', () => {
+    for (let w = 1; w <= 8; w++) {
+      for (let st = 1; st <= 3; st++) {
+        const level = generateLevel(w, st);
+        const landings = landingsOf(level.ground);
+        for (const e of level.enemies) {
+          if (e.kind === 'corvo-umbral') continue;
+          for (const l of landings) expect(e.x >= l && e.x < l + 5, `${level.id} ${e.kind}@${e.x} pouso ${l}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('corvos não patrulham sobre o pouso (entrada do trecho + 3 blocos de patrulha)', () => {
+    for (let w = 1; w <= 8; w++) {
+      for (let st = 1; st <= 3; st++) {
+        const level = generateLevel(w, st);
+        for (const l of landingsOf(level.ground)) {
+          for (const e of level.enemies) if (e.kind === 'corvo-umbral') expect(e.x - 3 >= l - 0.5 || e.x + 3 < l, `${level.id} corvo@${e.x} pouso ${l}`).toBe(true);
+        }
+      }
+    }
   });
 });
