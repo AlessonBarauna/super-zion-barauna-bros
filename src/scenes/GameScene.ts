@@ -237,7 +237,7 @@ export class GameScene extends Phaser.Scene {
           this.cameras.main.shake(260, 0.008);
         },
         onDefeated: () => this.onBossDefeated(),
-      });
+      }, { widthTiles: this.level.widthTiles, groundRow: this.level.groundRow });
     }
 
     // A câmera segue um ponto invisível: o jogador (solo) ou o meio entre os dois (cooperativo).

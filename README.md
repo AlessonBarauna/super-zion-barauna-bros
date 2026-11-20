@@ -104,3 +104,12 @@ Princípios: lógica pura separada do Phaser (testável em Node); fases orientad
 - **Canos** decorativos e entráveis (↓ no topo) levam a **cavernas secretas** cheias de moedas; **portas de casas** levam a salas com presentes. Cada sala tem saída de volta à fase.
 - Blocos e tijolos em alturas variadas (linhas 3 a 6).
 - Testes de navegador: `tools/visual/scenarios_pipes.py` (use `?renderer=canvas&level=1-1`).
+
+## Chefões com ataques próprios (mundos 2 a 8)
+Além da investida, cada chefão alterna ataques especiais, sempre com um aviso antes (o chefão treme):
+- **Chuva de pedras** (Kragor, Vyrak, Auron, Umbrax): uma marca vermelha aparece no chão e a pedra cai depois; saia de baixo.
+- **Salto com onda de choque** (Sakhur, Mechazord, Umbrax): ao pousar, duas ondas correm pelo chão; pule por cima.
+- **Orbes rasteiros** (Frostak, Vyrak, Mechazord, Auron, Umbrax): pule por cima; chefões enfurecidos e os dos mundos finais disparam mais de um.
+- Gronk (mundo 1) continua só com a investida, para a primeira luta ser mais simples.
+- Arte dos projéteis é provisória (formas simples coloridas por chefão). Os corpos dos chefões ainda são o mesmo desenho base pintado em cores diferentes.
+- Testes: `tests/boss-specials.test.ts` e `tools/visual/scenarios_boss_specials.py`.
