@@ -62,3 +62,13 @@ describe('justiça das fases geradas', () => {
     }
   });
 });
+
+describe('canos por tema', () => {
+  it('todo mundo (exceto o 1) tem paleta de cano própria e todas são diferentes', async () => {
+    const { PIPE_PALETTES } = await import('../src/art/worldArt');
+    const themes = WORLDS.map((w) => w.theme).filter((t) => t !== 'oliveiras');
+    for (const t of themes) expect(PIPE_PALETTES[t], t).toBeDefined();
+    const bases = Object.values(PIPE_PALETTES).map((p) => p.base);
+    expect(new Set(bases).size).toBe(bases.length);
+  });
+});
