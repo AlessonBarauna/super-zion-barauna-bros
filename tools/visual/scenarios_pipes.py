@@ -57,11 +57,12 @@ with sync_playwright() as pw:
     tp(pg, 23*60, 420)
     pg.keyboard.press('ArrowDown'); pg.wait_for_timeout(800)
     check('cano decorativo não teleporta', state(pg)['x'] < 130*60)
-    # pulo duplo
-    tp(pg, 700, 540); pg.wait_for_timeout(300)
+    # pulo duplo (coluna 18: sem blocos nem plataformas acima, senão a cabeça bate e zera a velocidade)
+    tp(pg, 18 * 60 + 30, 540); pg.wait_for_timeout(300)
     pg.keyboard.press('Space'); pg.wait_for_timeout(300)
-    vy1 = state(pg)['vy']; pg.keyboard.press('Space'); pg.wait_for_timeout(250)
-    vy2 = state(pg)['vy']
+    vy1 = state(pg)['vy']
+    pg.keyboard.down('Space'); pg.wait_for_timeout(250)   # segura: toque rápido é cortado pelo pulo variável em quadros lentos
+    vy2 = state(pg)['vy']; pg.keyboard.up('Space')
     check('pulo duplo dá novo impulso (subiu mais alto que o 1º pulo sozinho)', vy2 < vy1 + 150, f'{vy1}->{vy2}')
     # abaixar: segurar ↓ no chão reduz a altura e para o personagem; soltar levanta
     tp(pg, 700, 540); pg.wait_for_timeout(1500)
