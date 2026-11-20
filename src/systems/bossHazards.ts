@@ -78,12 +78,17 @@ export function spawnQuake(def: BossDef, x: number, arena: Arena): Hazard[] {
   }));
 }
 
-/** Chuva de pedras: uma sobre o jogador e as demais ao redor, sempre dentro da arena. */
-export function spawnRain(def: BossDef, targetX: number, arena: Arena, rage: boolean): Hazard[] {
+/**
+ * Chuva de pedras: uma sobre o jogador e as demais ao redor, sempre dentro da arena.
+ * Para chefões fracos à própria chuva (def.weakness.rocks > 0), a segunda pedra cai no meio do caminho
+ * entre o jogador e o chefão: quem ficar perto (sem encostar) faz a pedra acertar o chefão.
+ */
+export function spawnRain(def: BossDef, targetX: number, arena: Arena, rage: boolean, bossX?: number): Hazard[] {
   const count = 2 + (rage ? 1 : 0) + (def.world >= 6 ? 1 : 0);
   const margin = HAZARD.rock.w;
   const clamp = (v: number): number => Math.min(arena.right - margin, Math.max(arena.left + margin, v));
   const xs: number[] = [clamp(targetX)];
+  if (def.weakness.rocks > 0 && bossX !== undefined) xs.push(clamp((targetX + bossX) / 2));
   for (let i = 1; xs.length < count; i++) {
     const side = i % 2 === 1 ? 1 : -1;
     xs.push(clamp(targetX + side * 170 * Math.ceil(i / 2)));

@@ -32,6 +32,7 @@ export class BossFight {
   private readonly bar: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
   private shownHp = -1;
+  private lastNote = -10;
   private readonly arena: Arena;
   private hazards: { data: Hazard; shape: Phaser.GameObjects.Shape; marker?: Phaser.GameObjects.Ellipse }[] = [];
 
@@ -72,6 +73,39 @@ export class BossFight {
       .setScrollFactor(0)
       .setDepth(DEPTH.hud);
     this.drawBar();
+    this.showHint(this.boss.def.hint);
+  }
+
+  /** Dica no início da luta (some sozinha). */
+  private showHint(text: string): void {
+    const scene = this.boss.scene;
+    const hint = scene.add
+      .text(GAME_WIDTH / 2, 288, text, {
+        fontFamily: UI_FONT,
+        fontStyle: 'bold',
+        fontSize: '24px',
+        color: PALETTE.douradoAurora,
+        stroke: PALETTE.contorno,
+        strokeThickness: 6,
+        align: 'center',
+        wordWrap: { width: 900 },
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud);
+    scene.tweens.add({ targets: hint, alpha: 0, delay: 5500, duration: 900, onComplete: () => hint.destroy() });
+  }
+
+  /** Aviso rápido sobre o chefão (ex.: golpe inútil), no máximo a cada 1,2 s. */
+  private note(text: string): void {
+    const scene = this.boss.scene;
+    if (scene.time.now / 1000 - this.lastNote < 1.2) return;
+    this.lastNote = scene.time.now / 1000;
+    const t = scene.add
+      .text(this.boss.x, this.boss.y - 90, text, { fontFamily: UI_FONT, fontStyle: 'bold', fontSize: '22px', color: PALETTE.creme, stroke: PALETTE.contorno, strokeThickness: 5 })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.hud);
+    scene.tweens.add({ targets: t, y: t.y - 34, alpha: 0, duration: 900, onComplete: () => t.destroy() });
   }
 
   get defeated(): boolean {
@@ -95,7 +129,7 @@ export class BossFight {
       kind === 'shot'
         ? spawnShot(def, this.boss.x, this.boss.ai.dir, this.arena, rage)
         : kind === 'rain'
-          ? spawnRain(def, targetX, this.arena, rage)
+          ? spawnRain(def, targetX, this.arena, rage, this.boss.x)
           : spawnQuake(def, this.boss.x, this.arena);
     for (const data of list) this.hazards.push(this.makeVisual(data));
     if (kind === 'quake') this.boss.scene.cameras.main.shake(220, 0.006);
@@ -128,6 +162,14 @@ export class BossFight {
       }
       item.data = data;
       item.shape.setPosition(data.x, data.y);
+      if (data.kind === 'rock' && isHarmful(data) && this.boss.def.weakness.rocks > 0 && this.rockHitsBoss(data)) {
+        if (this.boss.hurt('rock').hit) {
+          item.shape.destroy();
+          item.marker?.destroy();
+          if (this.defeated) continue;
+          continue;
+        }
+      }
       if (data.kind === 'rock') {
         item.shape.setVisible(isHarmful(data));
         const pulse = 0.55 + 0.45 * Math.abs(Math.sin(data.warn * 12));
@@ -143,6 +185,11 @@ export class BossFight {
     this.hazards = next;
   }
 
+  private rockHitsBoss(rock: Hazard): boolean {
+    const b = this.boss.arcadeBody;
+    return hazardHits(rock, { x: b.x, y: b.y, w: b.width, h: b.height });
+  }
+
   private clearHazards(): void {
     for (const item of this.hazards) {
       item.shape.destroy();
@@ -155,7 +202,8 @@ export class BossFight {
   fireHit(box: Phaser.Geom.Rectangle): boolean {
     if (this.defeated || !this.boss.active) return false;
     if (!Phaser.Geom.Intersects.RectangleToRectangle(box, this.boss.getBounds())) return false;
-    this.boss.hurt('fire');
+    const r = this.boss.hurt('fire');
+    if (r.immune) this.note('Imune ao fogo!');
     return true;
   }
 
@@ -167,7 +215,8 @@ export class BossFight {
     const falling = pb.velocity.y > 40 * PX;
     const fromAbove = pb.bottom - bb.top < bb.height * 0.4;
     if (falling && fromAbove) {
-      boss.hurt('stomp');
+      const r = boss.hurt('stomp');
+      if (r.immune) this.note('Pisão não machuca agora!');
       player.bounce();
       return;
     }

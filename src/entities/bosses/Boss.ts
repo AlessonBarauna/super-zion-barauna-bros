@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { BOSS_BODY, BOSS_FRAME } from '../../art/creatureArt';
 import { DEPTH, PX } from '../../game/constants';
-import { BOSSES, createBoss, damageBoss, stepBoss, type BossAction, type BossDef, type BossMode, type BossState } from '../../systems/boss';
+import { BOSSES, createBoss, damageBoss, stepBoss, type BossAction, type BossDef, type BossMode, type BossState, type DamageKind } from '../../systems/boss';
 import type { BossKind } from '../../levels/types';
 
 export type BossEvent = 'hit' | 'defeated' | 'wall';
@@ -53,7 +53,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     if (action?.kind === 'leap') body.setVelocityY(-Boss.LEAP_VY * PX);
     body.setVelocityX(vx * PX);
     this.setFlipX(state.dir === 1);
-    if (hitWall && state.mode === 'stunned') this.onEvent?.('wall');
+    if (hitWall && this.ai.mode !== 'charge') this.onEvent?.('wall');
 
     if (state.mode !== this.lastMode) {
       this.lastMode = state.mode;
@@ -70,13 +70,14 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     return action;
   }
 
-  hurt(kind: 'stomp' | 'fire'): boolean {
-    const result = damageBoss(this.ai, kind);
+  /** Aplica um golpe; `immune` indica que o golpe não adianta contra este chefão agora. */
+  hurt(kind: DamageKind): { hit: boolean; immune: boolean } {
+    const result = damageBoss(this.ai, kind, this.def.weakness);
     this.ai = result.state;
-    if (!result.hit) return false;
+    if (!result.hit) return { hit: false, immune: result.immune === true };
     this.onEvent?.(result.defeated ? 'defeated' : 'hit');
     if (result.defeated) this.fall();
-    return true;
+    return { hit: true, immune: false };
   }
 
   private fall(): void {

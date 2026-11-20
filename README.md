@@ -111,5 +111,22 @@ Além da investida, cada chefão alterna ataques especiais, sempre com um aviso 
 - **Salto com onda de choque** (Sakhur, Mechazord, Umbrax): ao pousar, duas ondas correm pelo chão; pule por cima.
 - **Orbes rasteiros** (Frostak, Vyrak, Mechazord, Auron, Umbrax): pule por cima; chefões enfurecidos e os dos mundos finais disparam mais de um.
 - Gronk (mundo 1) continua só com a investida, para a primeira luta ser mais simples.
-- Arte dos projéteis é provisória (formas simples coloridas por chefão). Os corpos dos chefões ainda são o mesmo desenho base pintado em cores diferentes.
+- Arte dos projéteis é provisória (formas simples coloridas por chefão).
 - Testes: `tests/boss-specials.test.ts` e `tools/visual/scenarios_boss_specials.py`.
+
+## Cada chefão tem corpo e jeito de vencer próprios
+Uma dica aparece no início de cada luta. Resumo (a fraqueza fica em `systems/boss.ts`, tabela `weakness`):
+
+| Chefão | Como vencer |
+|---|---|
+| Gronk (1) | Espere ele bater na parede e pise nele (fogo também machuca). |
+| Kragor (2) | Imune a fogo. Fique perto (sem encostar) durante a chuva: uma pedra cai entre você e ele e o fere; depois pise. |
+| Sakhur (3) | Desvie do salto e pise nele quando pousar cansado (dano 3). Bater na parede não o atordoa. |
+| Frostak (4) | Fogo derrete (dano 2). Pisão só faz 1. |
+| Vyrak (5) | Só dá para pisar nele enquanto ele se prepara para atacar (isso interrompe o ataque). |
+| Mechazord (6) | Imune a fogo. Superaquece depois de atirar: pise (dano 3). |
+| Auron (7) | Cansa depois da chuva de pedras: pise (dano 3) ou use fogo. |
+| Umbrax (8) | Qualquer cansaço dele vale; fogo e as próprias pedras dele também ferem. |
+
+Golpe inútil mostra um aviso sobre o chefão ("Imune ao fogo!", "Pisão não machuca agora!").
+Corpos: `src/art/bossArt.ts` (arte original e provisória). Testes: `tests/boss-specials.test.ts` e `tools/visual/scenarios_boss_weakness.py`.
