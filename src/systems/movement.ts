@@ -250,6 +250,7 @@ export type PlayerAnimation =
   | 'jump'
   | 'fall'
   | 'land'
+  | 'crouch'
   | 'hurt'
   | 'dead'
   | 'victory'

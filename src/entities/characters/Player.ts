@@ -200,7 +200,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setFlipX(s.facing === -1);
     this.setAnimation(
-      this.crouching && this.stunTimer <= 0 ? 'land' : deriveAnimation(
+      this.crouching && this.stunTimer <= 0 ? 'crouch' : deriveAnimation(
         {
           onGround,
           vx: body.velocity.x,
