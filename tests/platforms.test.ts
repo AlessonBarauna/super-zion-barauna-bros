@@ -90,6 +90,11 @@ describe('validação com plataformas móveis', () => {
     spikes: [],
     checkpoints: [],
     movingPlatforms,
+    pipes: [],
+    doors: [],
+    rooms: [],
+    widthTiles: 130,
+    mainWidthTiles: 130,
   });
 
   it('a fase 1-1 tem um vão maior que o salto, coberto por uma ponte móvel', () => {

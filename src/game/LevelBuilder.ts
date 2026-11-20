@@ -14,7 +14,19 @@ export interface CheckpointObject {
   active: boolean;
 }
 
+/** Ponto onde ↓ leva a outro lugar (cano ou porta). */
+export interface WarpPoint {
+  kind: 'cano' | 'porta';
+  /** Centro em pixels e altura dos pés de quem está em cima/na frente. */
+  x: number;
+  feetY: number;
+  halfW: number;
+  toX: number;
+  toBottom: number;
+}
+
 export interface BuiltLevel {
+  warps: WarpPoint[];
   solids: Phaser.Physics.Arcade.StaticGroup;
   movers: MovingPlatform[];
   coins: Phaser.Physics.Arcade.StaticGroup;
@@ -35,6 +47,8 @@ function tileTexture(kind: CellKind, col: number, row: number, grid: TileGrid): 
   const variant = (col * 7 + row * 13) % TILE_VARIANTS;
   switch (kind) {
     case 'ground':
+      // Nas salas secretas o chão é de terra, sem grama.
+      if (grid.level.rooms.some((r) => col >= r.x && col < r.x + r.w)) return `tile-dirt-${variant}`;
       return grid.isSolid(col, row - 1) ? `tile-dirt-${variant}` : `tile-grass-${variant}`;
     case 'platform':
       return 'tile-platform';
@@ -44,6 +58,11 @@ function tileTexture(kind: CellKind, col: number, row: number, grid: TileGrid): 
       return 'tile-surprise';
     case 'stone':
       return 'tile-stone';
+    case 'pipe': {
+      const top = grid.kindAt(col, row - 1) !== 'pipe' ? 'top' : 'body';
+      const side = grid.kindAt(col - 1, row) === 'pipe' ? 'r' : 'l';
+      return `pipe-${top}-${side}`;
+    }
   }
 }
 
@@ -73,7 +92,9 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
   const movers = level.movingPlatforms.map((spec) => new MovingPlatform(scene, spec));
 
   buildPitFill(scene, level);
+  buildRooms(scene, level);
   buildDecor(scene, level);
+  const warps = buildWarps(scene, level);
 
   const coins = scene.physics.add.staticGroup();
   level.coins.forEach((c, i) => {
@@ -121,6 +142,7 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
   scene.physics.add.existing(goalZone, true);
 
   return {
+    warps,
     solids,
     movers,
     coins,
@@ -137,11 +159,13 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
 
 /** Preenche os vãos entre trechos de terreno com um fundo escuro (abismo). */
 function buildPitFill(scene: Phaser.Scene, level: LevelData): void {
+  const mainWidth = level.mainWidthTiles ?? level.widthTiles;
   const segs = [...level.ground].sort((a, b) => a.from - b.from);
   for (let i = 1; i < segs.length; i++) {
     const prev = segs[i - 1];
     const next = segs[i];
     if (!prev || !next || next.from - prev.to <= 1) continue;
+    if (next.from >= mainWidth && prev.to < mainWidth) continue;
     const x0 = (prev.to + 1) * TILE;
     const w = (next.from - prev.to - 1) * TILE;
     const top = level.groundRow * TILE;
@@ -157,10 +181,12 @@ function buildPitFill(scene: Phaser.Scene, level: LevelData): void {
 function buildDecor(scene: Phaser.Scene, level: LevelData): void {
   const rnd = seeded(2026);
   const groundTop = level.groundRow * TILE;
-  const houseCols = new Set([6, 20, 30, 94, 118]);
+  const houseCols = new Set([6, 20, 30, 94, 118, ...level.doors.filter((d) => !d.exit).map((d) => d.x)]);
+  const mainWidth = level.mainWidthTiles ?? level.widthTiles;
   let nextTreeCol = 0;
 
   for (const seg of level.ground) {
+    if (seg.from >= mainWidth) continue; // salas secretas não têm árvores nem casas
     for (let col = seg.from; col <= seg.to; col++) {
       const interior = col >= seg.from + 3 && col <= seg.to - 3;
       const x = center(col);
@@ -205,4 +231,64 @@ function buildDecor(scene: Phaser.Scene, level: LevelData): void {
       }
     }
   }
+}
+
+
+/** Fundo escuro das salas secretas (cobre o céu e o parallax) e porta de saída. */
+function buildRooms(scene: Phaser.Scene, level: LevelData): void {
+  for (const room of level.rooms) {
+    const x = room.x * TILE;
+    const w = room.w * TILE;
+    const h = level.heightTiles * TILE;
+    const g = scene.add.graphics().setDepth(DEPTH.decorBack - 8);
+    const top = room.kind === 'caverna' ? 0x16253a : 0x3b2a22;
+    const bottom = room.kind === 'caverna' ? 0x0b1420 : 0x24180f;
+    // Faixas em degradê (o renderer Canvas não suporta fillGradientStyle).
+    const bands = 18;
+    for (let i = 0; i < bands; i++) {
+      const t = i / (bands - 1);
+      const mix = (a: number, b: number, sh: number): number => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t);
+      g.fillStyle((mix(top, bottom, 16) << 16) | (mix(top, bottom, 8) << 8) | mix(top, bottom, 0), 1);
+      g.fillRect(x, (h / bands) * i, w, h / bands + 1);
+    }
+    const rnd = seeded(room.x);
+    for (let i = 0; i < 28; i++) {
+      const sx = x + rnd() * w;
+      const sy = rnd() * (level.groundRow * TILE - 40);
+      if (room.kind === 'caverna') {
+        g.fillStyle(0x8fe3f5, 0.25 + rnd() * 0.3).fillCircle(sx, sy, 2 + rnd() * 3);
+      } else {
+        g.fillStyle(0x000000, 0.1).fillRect(sx, 0, 3, level.groundRow * TILE);
+      }
+    }
+  }
+}
+
+/** Pontos de entrada (canos e portas) e as portas de saída desenhadas. */
+function buildWarps(scene: Phaser.Scene, level: LevelData): WarpPoint[] {
+  const warps: WarpPoint[] = [];
+  const groundTop = level.groundRow * TILE;
+  for (const pipe of level.pipes) {
+    if (!pipe.to) continue;
+    warps.push({
+      kind: 'cano',
+      x: (pipe.x + 1) * TILE,
+      feetY: (level.groundRow - pipe.h) * TILE,
+      halfW: TILE * 0.62,
+      toX: center(pipe.to.x),
+      toBottom: (pipe.to.y + 1) * TILE,
+    });
+  }
+  for (const door of level.doors) {
+    if (door.exit) scene.add.image(center(door.x), groundTop + 2 * PX, 'door-exit').setOrigin(0.5, 1).setDepth(DEPTH.decorBack);
+    warps.push({
+      kind: 'porta',
+      x: center(door.x) + 2 * PX,
+      feetY: groundTop,
+      halfW: 30 * PX,
+      toX: center(door.to.x),
+      toBottom: (door.to.y + 1) * TILE,
+    });
+  }
+  return warps;
 }

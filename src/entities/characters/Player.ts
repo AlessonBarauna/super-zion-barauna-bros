@@ -11,7 +11,7 @@ import {
   type PlayerAnimation,
 } from '../../systems/movement';
 import { PowerState } from '../../systems/powers';
-import { Vitality } from '../../systems/vitality';
+import { START_HP, Vitality } from '../../systems/vitality';
 import type { CharacterDef } from './characters';
 
 const LAND_ANIM_TIME = 0.1;
@@ -19,7 +19,10 @@ const STUN_TIME = 0.4;
 const ATTACK_ANIM_TIME = 0.22;
 const HARD_LANDING = 420 * PX;
 
-export type PlayerEvent = 'jump' | 'land' | 'hurt' | 'died' | 'fire';
+export type PlayerEvent = 'jump' | 'airjump' | 'land' | 'hurt' | 'died' | 'fire' | 'grow';
+
+/** Escala do personagem pequeno (1 coração) em relação ao grande. */
+export const SMALL_SCALE = 0.78;
 
 /** Personagem jogável (Zion ou Bara). A lógica de movimento fica em systems/movement; aqui só há integração com o Phaser. */
 export class Player extends Phaser.Physics.Arcade.Sprite {
@@ -37,6 +40,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private attackTimer = 0;
   private currentAnim: PlayerAnimation = 'idle';
   private jumpHeld = false;
+  private sizeScale = 1;
+  /** ↓ foi apertado neste quadro (lido pela cena para entrar em canos e portas). */
+  downPressed = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -54,6 +60,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setOffset(def.body.offsetX * PX, def.body.offsetY * PX);
     body.setMaxVelocity(def.params.runSpeed * 1.6, def.params.maxFallSpeed * 1.5);
     this.setCollideWorldBounds(true);
+    this.vitality.reset(START_HP);
+    this.sizeScale = SMALL_SCALE;
+    this.setScale(SMALL_SCALE);
     this.placeOnGround(x, bottomY);
     this.play(`${def.id}-idle`);
   }
@@ -73,16 +82,55 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Posiciona de modo que a base do corpo toque `bottomY`. */
   placeOnGround(x: number, bottomY: number): void {
     const body = this.arcadeBody;
-    const centerToBodyBottom = body.offset.y + body.height - (ZION_FRAME.h * PX) / 2;
+    const centerToBodyBottom = (body.offset.y + body.sourceHeight - (ZION_FRAME.h * PX) / 2) * this.scaleY;
     body.reset(x, bottomY - centerToBodyBottom);
+  }
+
+  /** Grande a partir de 2 corações; pequeno com 1. */
+  get isBig(): boolean {
+    return this.vitality.isBig;
+  }
+
+  /** Ajusta a escala ao tamanho atual mantendo os pés no mesmo lugar e a velocidade. */
+  private applySize(): void {
+    const target = this.isBig ? 1 : SMALL_SCALE;
+    if (target === this.sizeScale) return;
+    const body = this.arcadeBody;
+    const { x: vx, y: vy } = body.velocity;
+    const bottom = body.bottom;
+    this.sizeScale = target;
+    this.setScale(target);
+    this.placeOnGround(this.x, bottom);
+    body.setVelocity(vx, vy);
+  }
+
+  /** Move o jogador para outro ponto sem perder tamanho, poderes nem vida. */
+  teleport(x: number, bottomY: number): void {
+    const body = this.arcadeBody;
+    body.enable = true;
+    this.setAlpha(1);
+    this.placeOnGround(x, bottomY);
+    body.setVelocity(0, 0);
+    this.mv = { ...createMovementState(), facing: this.mv.facing };
+  }
+
+  /** Pegou a Fruta de Baraúna. */
+  grow(): void {
+    const wasBig = this.isBig;
+    this.vitality.grow();
+    this.vitality.grantInvulnerability(0.6);
+    this.applySize();
+    if (!wasBig) this.emit('grow' satisfies PlayerEvent);
   }
 
   override update(dt: number, time: number): void {
     const body = this.arcadeBody;
     this.vitality.update(dt);
     this.powers.update(dt);
+    this.applySize();
     const polled = this.controls.poll();
     this.jumpHeld = polled.jumpHeld;
+    this.downPressed = polled.downPressed === true && !this.locked;
 
     if (this.dead) {
       this.setAlpha(1);
@@ -108,6 +156,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setGravityY(this.def.params.gravity * (s.gravityScale - 1));
 
     if (s.justJumped) this.emit('jump' satisfies PlayerEvent);
+    if (s.justAirJumped) this.emit('airjump' satisfies PlayerEvent);
     if (s.justLanded && s.impactSpeed > HARD_LANDING) {
       this.landTimer = LAND_ANIM_TIME;
       this.emit('land' satisfies PlayerEvent, s.impactSpeed);
@@ -193,8 +242,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.mv = createMovementState();
     this.powers.lose();
     this.attackTimer = 0;
-    this.vitality.reset();
+    this.vitality.reset(START_HP);
     this.vitality.grantInvulnerability(2.2);
+    this.applySize();
     const body = this.arcadeBody;
     body.checkCollision.none = false;
     this.setCollideWorldBounds(true);

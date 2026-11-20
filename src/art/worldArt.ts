@@ -225,6 +225,56 @@ function spikesTile(ctx: Ctx): void {
   fillStroke(ctx, '#6C7A8F', 2.2);
 }
 
+/** Cano verde (2 blocos de largura): cada metade é uma textura de 45x45. */
+function pipeTile(ctx: Ctx, top: boolean, side: 'l' | 'r'): void {
+  const body = top ? 0 : 3;
+  const x0 = side === 'l' ? 0 : 0;
+  ctx.fillStyle = '#2F8F3A';
+  ctx.fillRect(x0 + body, 0, T - body * (side === 'l' ? 1 : 1), T);
+  const g = ctx.createLinearGradient(0, 0, T, 0);
+  const light = side === 'l' ? '#7BE27F' : '#43B649';
+  const dark = side === 'l' ? '#43B649' : '#2A7F34';
+  g.addColorStop(0, light);
+  g.addColorStop(1, dark);
+  ctx.fillStyle = g;
+  const left = side === 'l' ? (top ? 1.2 : 4.2) : 0;
+  const right = side === 'r' ? (top ? 1.2 : 4.2) : 0;
+  ctx.fillRect(left, top ? 6 : 0, T - left - right, top ? T - 6 : T);
+  if (top) {
+    roundRectPath(ctx, side === 'l' ? 1.2 : -4, 1.2, T + (side === 'l' ? -1.2 : 4) - (side === 'r' ? 1.2 : 0), 17, 5);
+    fillStroke(ctx, g, 2.6);
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.fillRect(side === 'l' ? 7 : 4, 5, 6, 10);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(side === 'l' ? 11 : 4, 0, 5, T);
+  }
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  if (side === 'l') {
+    ctx.moveTo(top ? 1.2 : 4.2, top ? 17 : 0);
+    ctx.lineTo(top ? 1.2 : 4.2, T);
+  } else {
+    ctx.moveTo(T - (top ? 1.2 : 4.2), top ? 17 : 0);
+    ctx.lineTo(T - (top ? 1.2 : 4.2), T);
+  }
+  ctx.stroke();
+}
+
+/** Porta de saída das salas secretas. */
+function exitDoor(ctx: Ctx): void {
+  roundRectPath(ctx, 4, 4, 38, 78, 14);
+  fillStroke(ctx, '#7A4A28', 3);
+  roundRectPath(ctx, 10, 12, 26, 66, 9);
+  ctx.strokeStyle = '#5A3418';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  circle(ctx, 32, 48, 2.6);
+  ctx.fillStyle = PALETTE.douradoAurora;
+  ctx.fill();
+}
+
 /** Fundo escuro dos abismos: deixa claro que ali não há chão. */
 function pitFill(ctx: Ctx): void {
   const g = ctx.createLinearGradient(0, 0, 0, 135);
@@ -247,12 +297,12 @@ function pitFill(ctx: Ctx): void {
 function coinFrame(ctx: Ctx, rx: number): void {
   ellipse(ctx, 12, 12, rx, 10.4);
   fillStroke(ctx, PALETTE.douradoAurora, 2.2);
-  if (rx > 6) {
-    ellipse(ctx, 12, 12, rx * 0.62, 6.6);
+  if (rx > 5) {
+    ellipse(ctx, 12, 12, rx * 0.6, 6.4);
     ctx.strokeStyle = '#D9A21E';
     ctx.lineWidth = 1.6;
     ctx.stroke();
-    star4(ctx, 12, 12, 3.6, 0.45);
+    star4(ctx, 12, 12, Math.min(3.6, rx * 0.36), 0.45);
     ctx.fillStyle = '#FFF2B0';
     ctx.fill();
   }
@@ -303,6 +353,33 @@ function fireFlower(ctx: Ctx): void {
   fillStroke(ctx, PALETTE.douradoAurora, 2.2);
   circle(ctx, 16.4, 13.6, 2);
   ctx.fillStyle = '#FFF7C2';
+  ctx.fill();
+}
+
+/** Fruta de Baraúna: faz o personagem crescer. Fruta dourada com folha e o símbolo da Aurora. */
+function growFruit(ctx: Ctx): void {
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(18, 12);
+  ctx.quadraticCurveTo(18, 6, 22, 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(26, 7, 7, 3.6, -0.5, 0, Math.PI * 2);
+  fillStroke(ctx, '#3BA848', 2.2);
+  const g = ctx.createRadialGradient(14, 20, 2, 18, 26, 16);
+  g.addColorStop(0, '#FFF2B0');
+  g.addColorStop(0.5, PALETTE.douradoAurora);
+  g.addColorStop(1, PALETTE.laranja);
+  ctx.beginPath();
+  ctx.moveTo(18, 13);
+  ctx.bezierCurveTo(30, 8, 38, 22, 31, 34);
+  ctx.quadraticCurveTo(18, 44, 5, 34);
+  ctx.bezierCurveTo(-2, 22, 6, 8, 18, 13);
+  ctx.closePath();
+  fillStroke(ctx, g, 2.6);
+  star4(ctx, 18, 26, 5.4, 0.45);
+  ctx.fillStyle = '#FFFFFF';
   ctx.fill();
 }
 
@@ -528,12 +605,17 @@ export function createWorldTextures(scene: Phaser.Scene): void {
   canvasTexture(scene, 'brick-shard', 14, 14, brickShard);
   canvasTexture(scene, 'spikes', T, 34, spikesTile);
   canvasTexture(scene, 'pit-fill', T, 135, pitFill);
+  for (const top of [true, false]) {
+    for (const side of ['l', 'r'] as const) canvasTexture(scene, `pipe-${top ? 'top' : 'body'}-${side}`, T, T, (c) => pipeTile(c, top, side));
+  }
+  canvasTexture(scene, 'door-exit', 46, 86, exitDoor);
 
-  [20, 13, 5, 13].forEach((rx, i) => canvasTexture(scene, `coin-${i}`, 24, 24, (c) => coinFrame(c, rx)));
+  [10.4, 6.6, 2.6, 6.6].forEach((rx, i) => canvasTexture(scene, `coin-${i}`, 24, 24, (c) => coinFrame(c, rx)));
   canvasTexture(scene, 'heart-full', 32, 30, (c) => heartIcon(c, true));
   canvasTexture(scene, 'heart-empty', 32, 30, (c) => heartIcon(c, false));
 
   canvasTexture(scene, 'item-flower', 36, 42, fireFlower);
+  canvasTexture(scene, 'item-grow', 36, 42, growFruit);
   canvasTexture(scene, 'fireball', 18, 18, fireball);
   canvasTexture(scene, 'flag-pole', 20, 196, flagPole);
   canvasTexture(scene, 'flag-banner', 58, 44, flagBanner);

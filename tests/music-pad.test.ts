@@ -48,7 +48,7 @@ describe('controle (gamepad)', () => {
   const press = (...idx: number[]) => { const b: boolean[] = []; for (const i of idx) b[i] = true; return b; };
 
   it('sem toque, nada acontece', () => {
-    expect(mapPad(idle)).toEqual({ moveX: 0, run: false, jump: false, power: false, pause: false });
+    expect(mapPad(idle)).toEqual({ moveX: 0, run: false, jump: false, power: false, pause: false, down: false });
   });
   it('analógico respeita a zona morta', () => {
     expect(mapPad({ axes: [DEADZONE - 0.05, 0], buttons: [] }).moveX).toBe(0);

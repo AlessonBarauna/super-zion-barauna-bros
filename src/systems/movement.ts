@@ -26,6 +26,10 @@ export interface MovementParams {
   coyoteTime: number;
   /** Tolerância (s) para registrar o pulo antes de tocar o chão. */
   jumpBuffer: number;
+  /** Pulos extras no ar (1 = pulo duplo). */
+  airJumps: number;
+  /** Força do pulo extra em relação ao primeiro. */
+  airJumpScale: number;
 }
 
 export interface MovementInput {
@@ -47,6 +51,9 @@ export interface MovementState {
   airVy: number;
   gravityScale: number;
   justJumped: boolean;
+  /** Fez o pulo extra neste quadro. */
+  justAirJumped: boolean;
+  airJumpsLeft: number;
   justLanded: boolean;
   impactSpeed: number;
 }
@@ -67,6 +74,8 @@ export const BASE_ZION_PARAMS: MovementParams = {
   maxFallSpeed: 900,
   coyoteTime: 0.1,
   jumpBuffer: 0.12,
+  airJumps: 1,
+  airJumpScale: 0.88,
 };
 
 /** Converte distâncias (mantendo os tempos), para a escala real do jogo. */
@@ -116,6 +125,8 @@ export const NEUTRAL_INPUT: MovementInput = {
 /** Comandos completos de um jogador: movimento + botão de poder (apertado neste quadro). */
 export interface PlayerControls extends MovementInput {
   powerPressed: boolean;
+  /** ↓ apertado neste quadro (entrar em cano ou porta). */
+  downPressed?: boolean;
 }
 
 export function createMovementState(): MovementState {
@@ -130,6 +141,8 @@ export function createMovementState(): MovementState {
     airVy: 0,
     gravityScale: 1,
     justJumped: false,
+    justAirJumped: false,
+    airJumpsLeft: 0,
     justLanded: false,
     impactSpeed: 0,
   };
@@ -149,12 +162,13 @@ export function stepMovement(
   bodyVx: number,
   bodyVy: number,
 ): MovementState {
-  const s: MovementState = { ...prev, justJumped: false, justLanded: false, impactSpeed: 0 };
+  const s: MovementState = { ...prev, justJumped: false, justAirJumped: false, justLanded: false, impactSpeed: 0 };
   let vx = bodyVx;
   let vy = bodyVy;
 
   if (onGround) {
     s.coyote = p.coyoteTime;
+    s.airJumpsLeft = p.airJumps;
     s.jumping = false;
     if (!prev.onGround) {
       s.justLanded = true;
@@ -186,11 +200,17 @@ export function stepMovement(
     s.buffer = 0;
     s.coyote = 0;
     s.justJumped = true;
+  } else if (!onGround && s.coyote === 0 && input.jumpPressed && s.airJumpsLeft > 0) {
+    vy = -p.jumpVelocity * p.airJumpScale;
+    s.airJumpsLeft -= 1;
+    s.jumping = true;
+    s.buffer = 0;
+    s.justAirJumped = true;
   } else if (s.jumping && !input.jumpHeld && vy < 0) {
     vy *= p.jumpCutScale;
     s.jumping = false;
   }
-  if (vy >= 0 && !s.justJumped) s.jumping = false;
+  if (vy >= 0 && !s.justJumped && !s.justAirJumped) s.jumping = false;
 
   vy = Math.min(vy, p.maxFallSpeed);
   s.vx = vx;

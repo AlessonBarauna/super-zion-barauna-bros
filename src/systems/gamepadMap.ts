@@ -12,12 +12,13 @@ export interface PadCommand {
   jump: boolean;
   power: boolean;
   pause: boolean;
+  down: boolean;
 }
 
 export const DEADZONE = 0.3;
 
 /** A/Cruz = pular; X/Quadrado ou gatilhos = correr; B/Círculo ou Y/Triângulo = poder; Start = pausa. */
-export const PAD_BUTTONS = { jump: [0], run: [2, 6, 7], power: [1, 3], left: 14, right: 15, start: 9 } as const;
+export const PAD_BUTTONS = { jump: [0], run: [2, 6, 7], power: [1, 3], left: 14, right: 15, down: 13, start: 9 } as const;
 
 export function mapPad(s: PadSnapshot, deadzone = DEADZONE): PadCommand {
   const x = s.axes[0] ?? 0;
@@ -30,5 +31,6 @@ export function mapPad(s: PadSnapshot, deadzone = DEADZONE): PadCommand {
     jump: any(PAD_BUTTONS.jump),
     power: any(PAD_BUTTONS.power),
     pause: s.buttons[PAD_BUTTONS.start] === true,
+    down: (s.axes[1] ?? 0) > 0.7 || s.buttons[PAD_BUTTONS.down] === true,
   };
 }

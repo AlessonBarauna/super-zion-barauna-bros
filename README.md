@@ -19,6 +19,8 @@ npm run preview    # serve o build
 |---|---|
 | Mover | `A` `D` ou `←` `→` |
 | Pular (segure = pulo mais alto) | `Espaço` (também `↑` / `W`) |
+| Pulo duplo | aperte pular de novo no ar |
+| Entrar em cano/porta | `↓` / `S` (P2: `O`; controle: direcional para baixo) |
 | Correr | `Shift` |
 | Pausar | `Esc` (também `P`) |
 | Tela cheia / Som | `F` / `M` |
@@ -93,3 +95,11 @@ Princípios: lógica pura separada do Phaser (testável em Node); fases orientad
 ## Fluxo Git
 
 `main` (estável) ← `develop` ← `feature/*`. Sem commits diretos na `main`; Pull Requests só são integrados com autorização.
+
+
+## Novidades (canos, salas secretas e crescimento)
+- O personagem começa **pequeno** (1 coração) e cresce com a **Fruta de Baraúna** (bloco perto do início de toda fase).
+- **Pulo duplo** para os dois personagens.
+- **Canos** decorativos e entráveis (↓ no topo) levam a **cavernas secretas** cheias de moedas; **portas de casas** levam a salas com presentes. Cada sala tem saída de volta à fase.
+- Blocos e tijolos em alturas variadas (linhas 3 a 6).
+- Testes de navegador: `tools/visual/scenarios_pipes.py` (use `?renderer=canvas&level=1-1`).
