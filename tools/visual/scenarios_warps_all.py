@@ -23,7 +23,7 @@ with sync_playwright() as pw:
             for i, wp in enumerate(warps):
                 total += 1
                 tp(pg, wp['x'], wp['feetY'])
-                pg.keyboard.press('ArrowDown'); pg.wait_for_timeout(2200)
+                pg.keyboard.press('ArrowDown', delay=150); pg.wait_for_timeout(2200)
                 a = info(pg)
                 inside = wp['toX'] >= main
                 ok = abs(a['x'] - wp['toX']) < 120 and not a['dead']

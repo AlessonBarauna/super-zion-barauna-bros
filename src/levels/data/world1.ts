@@ -20,7 +20,7 @@ const GROUND_ROW = 9;
 const MAIN_WIDTH = 130;
 
 // Salas secretas à direita do mundo: a caverna do tesouro (cano) e a casa com presente (porta).
-const CAVE = caveRoom(MAIN_WIDTH + 10, { x: 58, y: 8 });
+const CAVE = caveRoom(MAIN_WIDTH + 10, { x: 75, y: 5 }, 0);
 const HOUSE = houseRoom(CAVE.room.x + CAVE.room.w + 4, { x: 21, y: 8 }, 'flor-de-fogo');
 const WALL_RIGHT: BlockSpec[] = Array.from({ length: GROUND_ROW }, (_, y) => ({ kind: 'stone' as const, x: MAIN_WIDTH - 1, y }));
 

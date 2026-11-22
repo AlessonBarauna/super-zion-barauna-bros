@@ -141,6 +141,16 @@ export function validateLevel(level: LevelData, opts: ValidationOptions): string
     if (exits.length === 0) errors.push(`${name}: sem saída de volta para a fase`);
     const entries = warps.filter((w) => w.to && here(w.to.x) && !here(w.x));
     if (entries.length === 0) errors.push(`${name}: nenhum cano ou porta leva até a sala`);
+    // Túnel de cano: a saída tem que ser em outro cano, bem mais à frente (não onde o jogador entrou).
+    const pipeEntries = level.pipes.filter((p) => p.to && here(p.to.x) && !here(p.x));
+    const pipeExits = level.pipes.filter((p) => p.to && here(p.x) && !inRoom(p.to.x));
+    for (const entry of pipeEntries) {
+      for (const exit of pipeExits) {
+        const target = level.pipes.find((p) => p.x === exit.to!.x && level.groundRow - p.h - 1 === exit.to!.y);
+        if (!target) errors.push(`${name}: a saída do túnel precisa ser em cima de um cano da fase`);
+        else if (target.x < entry.x + 12) errors.push(`${name}: a saída do túnel (cano em ${target.x}) precisa ficar bem à frente da entrada (${entry.x})`);
+      }
+    }
   });
   if (mainWidth > level.widthTiles) errors.push('mainWidthTiles maior que widthTiles');
   if (level.goal.x >= mainWidth) errors.push('a meta precisa ficar na fase principal');
