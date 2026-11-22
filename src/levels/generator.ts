@@ -61,6 +61,7 @@ type ChunkKind =
   | 'stairs'
   | 'pipes'
   | 'warp-pipe'
+  | 'exit-pipe'
   | 'warp-door'
   | 'spike-pit'
   | 'spike-field'
@@ -110,6 +111,7 @@ export function generateLevel(world: number, stage: number): LevelData {
   /** Atalhos para as salas secretas: preenchidos quando os trechos de cano/porta são criados. */
   const warpSlots: Array<{ kind: 'cano' | 'porta'; pipeIndex?: number; doorIndex?: number; exitX: number }> = [];
   const flatSpans: Array<{ from: number; to: number }> = [];
+  let exitPipeIndex: number | undefined;
 
   let x = 0;
   const startEnd = 11;
@@ -129,8 +131,8 @@ export function generateLevel(world: number, stage: number): LevelData {
 
   let lastKind: ChunkKind = 'flat';
   for (let n = 0; n < chunkCount; n++) {
-    let kind = n === 2 ? 'warp-pipe' : n === 5 ? 'warp-door' : pick(kinds);
-    if (n === 2 || n === 5) lastKind = 'flat';
+    let kind = n === 2 ? 'warp-pipe' : n === 5 ? 'warp-door' : n === 7 ? 'exit-pipe' : pick(kinds);
+    if (n === 2 || n === 5 || n === 7) lastKind = 'flat';
     // Evita repetir trechos perigosos em sequência e sempre intercala terreno firme.
     if (kind !== 'flat' && kind === lastKind) kind = 'flat';
     if (lastKind === 'gap' || lastKind === 'bridge' || lastKind === 'double-gap' || lastKind === 'bridge-chain') kind = 'flat';
@@ -182,6 +184,15 @@ export function generateLevel(world: number, stage: number): LevelData {
       pipes.push({ x: start + 5, h: 2 });
       warpSlots.push({ kind: 'cano', pipeIndex: pipes.length - 1, exitX: start + 9 });
       coins.push(...line(start + 11, start + 12, 8));
+      x = start + len;
+    } else if (kind === 'exit-pipe') {
+      // Saída do túnel: quem entra no cano lá atrás reaparece em cima deste, bem mais à frente.
+      const len = 12;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + len - 1 });
+      pipes.push({ x: start + 5, h: 2 });
+      exitPipeIndex = pipes.length - 1;
+      coins.push(...line(start + 8, start + 10, 8));
       x = start + len;
     } else if (kind === 'warp-door') {
       const len = 14;
@@ -317,9 +328,12 @@ export function generateLevel(world: number, stage: number): LevelData {
   const roomKits: Array<ReturnType<typeof caveRoom>> = [];
   let roomX = mainWidth + 10;
   for (const slot of warpSlots) {
-    const back = { x: slot.exitX, y: 8 };
+    const exitPipe = exitPipeIndex !== undefined ? pipes[exitPipeIndex] : undefined;
+    // Túnel (cano): sai em cima do cano de saída lá na frente. Casa (porta): volta para perto da porta.
+    const back = slot.kind === 'cano' && exitPipe ? { x: exitPipe.x, y: GROUND_ROW - exitPipe.h - 1 } : { x: slot.exitX, y: 8 };
     const grow: BlockReward = rand() < 0.5 ? 'flor-de-fogo' : 'heart';
-    const kit = slot.kind === 'cano' ? caveRoom(roomX, back, world) : houseRoom(roomX, back, grow);
+    const seq = (world - 1) * 3 + (stage - 1);
+    const kit = slot.kind === 'cano' ? caveRoom(roomX, back, seq) : houseRoom(roomX, back, grow, seq);
     roomKits.push(kit);
     rooms.push(kit.room);
     const entry = roomEntry(kit.room);
