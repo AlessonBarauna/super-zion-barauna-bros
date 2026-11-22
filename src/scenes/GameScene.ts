@@ -1,3 +1,4 @@
+import { nextPowerDrop } from '../systems/powerDrop';
 import Phaser from 'phaser';
 import { layersForTheme } from '../art/backgroundArt';
 import { CogumeloSombrio, OURICO_CONFIG } from '../entities/enemies/CogumeloSombrio';
@@ -441,10 +442,10 @@ export class GameScene extends Phaser.Scene {
       const reward = (tile.getData('reward') as string | undefined) ?? 'coin';
       if (reward === 'coin') this.popCoin(tile.x, tile.y - TILE);
       else {
-        // A flor de fogo só aparece para quem já é grande; se alguém está pequeno, o bloco entrega a fruta.
-        const anySmall = this.players.some((p) => !p.dead && !p.isBig);
-        const kind = reward === 'heart' ? 'heart' : reward === 'grow' || anySmall ? 'grow' : 'flor-de-fogo';
-        this.spawnItem(kind, tile.x, tile.y);
+        // Bloco de poder entrega o próximo que falta para quem bateu (fruta → flor); quem já tem tudo ganha moeda.
+        const kind = reward === 'heart' ? 'heart' : nextPowerDrop({ isBig: player.isBig, hasFire: player.powers.current !== null });
+        if (kind === 'coin') this.popCoin(tile.x, tile.y - TILE);
+        else this.spawnItem(kind, tile.x, tile.y);
       }
     }
   }
