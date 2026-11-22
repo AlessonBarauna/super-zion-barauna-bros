@@ -1,3 +1,4 @@
+import { captureCarry, carryFor, type CarryEntry } from '../systems/carry';
 import { nextPowerDrop } from '../systems/powerDrop';
 import Phaser from 'phaser';
 import { layersForTheme } from '../art/backgroundArt';
@@ -28,6 +29,8 @@ import { HUD_EVENT, LEVEL_INTRO_EVENT, type HudSnapshot } from './UIScene';
 
 interface GameSceneData {
   levelId?: string;
+  /** Tamanho e poder que os jogadores trazem da fase anterior. */
+  carry?: CarryEntry[];
 }
 
 const COIN_SCORE = 50;
@@ -60,6 +63,8 @@ export class GameScene extends Phaser.Scene {
   private players: Player[] = [];
   private enemies: Enemy[] = [];
   private bossFight?: BossFight;
+  private startCarry?: CarryEntry[];
+  private carryOut: CarryEntry[] = [];
   private goalOpen = true;
   private progress!: GameProgress;
   private sfx!: Sfx;
@@ -97,6 +102,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data: GameSceneData): void {
+    this.startCarry = data.carry;
     this.level = LEVELS[data.levelId ?? FIRST_LEVEL_ID] ?? LEVELS[FIRST_LEVEL_ID]!;
     this.grid = new TileGrid(this.level);
     this.progress = new GameProgress();
@@ -188,6 +194,8 @@ export class GameScene extends Phaser.Scene {
       player.on('hurt', () => this.sfx.play('hurt'));
       player.on('fire', () => this.shootFireball(player));
       player.on('died', () => this.onPlayerDied(player));
+      const carried = carryFor(this.startCarry, id);
+      if (carried) player.restore(carried.hp, carried.power);
       this.players.push(player);
     });
 
@@ -729,6 +737,7 @@ export class GameScene extends Phaser.Scene {
 
   private finishLevel(): void {
     this.finished = true;
+    this.carryOut = captureCarry(this.players.map((p) => ({ characterId: p.def.id, dead: p.dead, hp: p.vitality.hp, power: p.powers.current })));
     const bonus = Math.floor(this.timeLeft) * TIME_BONUS_PER_SECOND;
     this.progress.addScore(bonus);
     const previousBest = saveManager.data.bestScores[this.level.id] ?? 0;
@@ -805,7 +814,7 @@ export class GameScene extends Phaser.Scene {
     };
     const small = { height: 56, fontSize: 26, fill: Phaser.Display.Color.HexStringToColor(PALETTE.roxoUmbrax).color };
     if (next) {
-      fixed(createButton(this, cx, 440, 'PRÓXIMA FASE', () => this.scene.start(SCENE_KEYS.Game, { levelId: next })));
+      fixed(createButton(this, cx, 440, 'PRÓXIMA FASE', () => this.scene.start(SCENE_KEYS.Game, { levelId: next, carry: this.carryOut })));
       fixed(createButton(this, cx, 510, primaryLabel, () => this.scene.restart(), { ...small, fill: Phaser.Display.Color.HexStringToColor(PALETTE.azulZion).color }));
       fixed(createButton(this, cx, 574, 'MAPA DE MUNDOS', toMap, small));
     } else {
