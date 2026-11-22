@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { BOSS_BODY, BOSS_FRAME } from '../../art/creatureArt';
 import { DEPTH, PX } from '../../game/constants';
-import { BOSSES, createBoss, damageBoss, stepBoss, type BossDef, type BossMode, type BossState } from '../../systems/boss';
+import { BOSSES, createBoss, damageBoss, stepBoss, type BossAction, type BossDef, type BossMode, type BossState } from '../../systems/boss';
 import type { BossKind } from '../../levels/types';
 
 export type BossEvent = 'hit' | 'defeated' | 'wall';
@@ -41,12 +41,16 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     return this.ai.mode === 'stunned' && this.ai.invuln <= 0;
   }
 
-  step(dt: number, playerDx: number): void {
-    if (this.defeated) return;
+  /** Velocidade vertical do salto (px de design/s, para cima). */
+  static readonly LEAP_VY = 700;
+
+  step(dt: number, playerDx: number): BossAction | undefined {
+    if (this.defeated) return undefined;
     const body = this.arcadeBody;
     const hitWall = this.ai.mode === 'charge' && (body.blocked.left || body.blocked.right);
-    const { state, vx } = stepBoss(this.ai, this.def, dt, { playerDx, hitWall });
+    const { state, vx, action } = stepBoss(this.ai, this.def, dt, { playerDx, hitWall, onGround: body.blocked.down });
     this.ai = state;
+    if (action?.kind === 'leap') body.setVelocityY(-Boss.LEAP_VY * PX);
     body.setVelocityX(vx * PX);
     this.setFlipX(state.dir === 1);
     if (hitWall && state.mode === 'stunned') this.onEvent?.('wall');
@@ -62,7 +66,8 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.anims.timeScale = state.hp <= this.def.hp / 2 ? 1.5 : 1;
     // Pisca durante a imunidade.
     this.setAlpha(state.invuln > 0 ? (Math.floor(state.invuln * 14) % 2 === 0 ? 0.45 : 1) : 1);
-    if (state.mode === 'windup') this.setX(this.x + Math.sin(this.scene.time.now / 20) * 1.5);
+    if (state.mode === 'windup' || state.mode === 'cast') this.setX(this.x + Math.sin(this.scene.time.now / 20) * 1.5);
+    return action;
   }
 
   hurt(kind: 'stomp' | 'fire'): boolean {
