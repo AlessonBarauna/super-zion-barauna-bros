@@ -76,12 +76,15 @@ describe('chefões', () => {
 
   it('pisão só machuca atordoado; fogo machuca fora da recuperação e da imunidade', () => {
     const walking = createBoss(def);
-    expect(damageBoss(walking, 'stomp').hit).toBe(false);
+    // Gronk (1º chefão): a cabeça é segura e sempre vulnerável (pisão "aberto"); atordoado dói mais.
+    const open = damageBoss(walking, 'stomp');
+    expect(open.hit).toBe(true);
+    expect(open.state.hp).toBe(def.hp - 2);
     expect(damageBoss(walking, 'fire').hit).toBe(true);
     const stunned: BossState = { ...walking, mode: 'stunned', stunBy: 'wall', timer: 2 };
     const r = damageBoss(stunned, 'stomp');
     expect(r.hit).toBe(true);
-    expect(r.state.hp).toBe(def.hp - 2);
+    expect(r.state.hp).toBe(def.hp - 3);
     expect(r.state.invuln).toBeGreaterThan(0);
     expect(damageBoss(r.state, 'fire').hit).toBe(false);
     expect(damageBoss({ ...walking, mode: 'recover' }, 'fire').hit).toBe(false);
@@ -145,5 +148,17 @@ describe('32 fases', () => {
     expect(count).toBe(32);
     expect(nextLevelId('1-4')).toBe('2-1');
     expect(nextLevelId('8-4')).toBeNull();
+  });
+});
+
+describe('Gronk — pisão aberto', () => {
+  it('três pisões na cabeça bastam, sem esperar atordoar', () => {
+    let s: BossState = createBoss(BOSSES.gronk);
+    for (let i = 0; i < 3; i++) {
+      const r = damageBoss({ ...s, invuln: 0 }, 'stomp', BOSSES.gronk.weakness);
+      expect(r.hit).toBe(true);
+      s = r.state;
+    }
+    expect(s.mode).toBe('dead');
   });
 });

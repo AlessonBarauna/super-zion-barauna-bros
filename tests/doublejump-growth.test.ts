@@ -112,9 +112,11 @@ describe('tamanho e crescimento', () => {
 describe('fruta nas fases', () => {
   it('toda fase de percurso tem uma Fruta de Baraúna perto do início; arenas também', () => {
     for (const level of Object.values(LEVELS)) {
-      const grow = level.blocks.find((b) => b.reward === 'grow');
-      expect(grow, level.id).toBeDefined();
-      expect(grow!.x).toBeLessThan(15);
+      const power = level.blocks.filter((b) => b.reward === 'grow' || b.reward === 'flor-de-fogo');
+      expect(power.length, level.id).toBeGreaterThan(0);
+      expect(Math.min(...power.map((b) => b.x)), level.id).toBeLessThan(15);
+      // Arena de chefão: pelo menos 3 blocos de poder (reforço para quem perder o fogo).
+      if (level.boss) expect(power.length, level.id).toBeGreaterThanOrEqual(3);
     }
   });
 });
