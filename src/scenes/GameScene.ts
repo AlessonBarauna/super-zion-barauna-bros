@@ -7,7 +7,7 @@ import { BossFight } from '../game/BossFight';
 import { worldInfo } from '../levels/generator';
 import { CHARACTERS } from '../entities/characters/characters';
 import { Player } from '../entities/characters/Player';
-import { buildLevel, type BuiltLevel, type CheckpointObject } from '../game/LevelBuilder';
+import { buildLevel, type BuiltLevel, type CheckpointObject, type WarpPoint } from '../game/LevelBuilder';
 import { DEPTH, GAME_HEIGHT, GAME_WIDTH, PALETTE, PX, SCENE_KEYS, TILE } from '../game/constants';
 import { saveManager } from '../game/saveStore';
 import { FIRST_LEVEL_ID, LEVELS, nextLevelId } from '../levels';
@@ -52,6 +52,9 @@ export class GameScene extends Phaser.Scene {
   private level!: LevelData;
   private grid!: TileGrid;
   private built!: BuiltLevel;
+  /** Região da câmera: a fase principal (-1) ou o índice de uma sala secreta. */
+  private region = -1;
+  private warping = false;
   private mode: GameMode = 'solo';
   private players: Player[] = [];
   private enemies: Enemy[] = [];
@@ -119,6 +122,8 @@ export class GameScene extends Phaser.Scene {
     this.platformClock = 0;
     this.riding = new Set();
     this.bumpedThisFrame = false;
+    this.region = -1;
+    this.warping = false;
 
     const worldW = this.level.widthTiles * TILE;
     const worldH = this.level.heightTiles * TILE;
@@ -170,6 +175,15 @@ export class GameScene extends Phaser.Scene {
       player.on('jump', () => {
         this.sfx.play('jump');
         this.puff(player.x, player.arcadeBody.bottom, 3);
+      });
+      player.on('airjump', () => {
+        this.sfx.play('jump');
+        this.puff(player.x, player.arcadeBody.bottom, 5);
+        this.sparkEmitter.explode(4, player.x, player.arcadeBody.bottom);
+      });
+      player.on('grow', () => {
+        this.sfx.play('powerup');
+        this.sparkEmitter.explode(14, player.x, player.y);
       });
       player.on('land', () => {
         this.sfx.play('land');
@@ -234,7 +248,7 @@ export class GameScene extends Phaser.Scene {
     // A câmera segue um ponto invisível: o jogador (solo) ou o meio entre os dois (cooperativo).
     this.camTarget = this.add.zone(this.player.x, GAME_HEIGHT / 2, 1, 1);
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, worldW, worldH);
+    cam.setBounds(0, 0, (this.level.mainWidthTiles ?? this.level.widthTiles) * TILE, worldH);
     cam.setBackgroundColor('#6EC3F0');
     cam.startFollow(this.camTarget, true, 0.12, 1);
     cam.setScroll(0, 0);
@@ -301,10 +315,67 @@ export class GameScene extends Phaser.Scene {
 
     this.bossFight?.step(dt, this.players);
     this.riding.clear();
+    this.updateWarps();
+    this.updateRegion();
     this.updateCamera(dt);
     this.updateFireballs(time);
     this.bg.update(cam.scrollX, time);
     this.emitHud();
+  }
+
+  /** ↓ sobre um cano ou diante de uma porta leva a equipe para o destino. */
+  private updateWarps(): void {
+    if (this.warping || this.finished || this.built.warps.length === 0) return;
+    for (const p of this.players) {
+      if (p.dead || p.victory || !p.downPressed) continue;
+      const bottom = p.feetY;
+      const warp = this.built.warps.find((w) => Math.abs(p.x - w.x) <= w.halfW && Math.abs(bottom - w.feetY) <= 8);
+      if (warp) {
+        this.startWarp(warp);
+        return;
+      }
+    }
+  }
+
+  private startWarp(warp: WarpPoint): void {
+    this.warping = true;
+    const team = this.players.filter((p) => !p.dead && !p.victory);
+    this.sfx.play('powerup');
+    for (const p of team) {
+      p.locked = true;
+      p.arcadeBody.setVelocity(0, 0);
+      this.tweens.add({ targets: p, alpha: 0, y: warp.kind === 'cano' ? p.y + 36 * PX : p.y, duration: 220 });
+    }
+    const cam = this.cameras.main;
+    this.time.delayedCall(200, () => cam.fadeOut(160, 16, 32, 44));
+    this.time.delayedCall(380, () => {
+      team.forEach((p, i) => {
+        if (p.dead) return;
+        p.teleport(warp.toX + i * PLAYER_SPACING, warp.toBottom);
+        p.locked = false;
+        this.lastSafe.set(p, { x: p.x, bottom: warp.toBottom });
+      });
+      this.updateRegion(true);
+      cam.fadeIn(220, 16, 32, 44);
+      this.warping = false;
+    });
+  }
+
+  /** Troca os limites da câmera quando a equipe está numa sala secreta (ou volta à fase). */
+  private updateRegion(snap = false): void {
+    const lead = this.players.find((p) => !p.dead && !p.victory);
+    if (!lead || this.level.rooms.length === 0) return;
+    const col = lead.x / TILE;
+    const idx = this.level.rooms.findIndex((r) => col >= r.x && col < r.x + r.w);
+    if (idx === this.region && !snap) return;
+    this.region = idx;
+    const room = idx >= 0 ? this.level.rooms[idx] : undefined;
+    const x0 = room ? room.x * TILE : 0;
+    const x1 = room ? (room.x + room.w) * TILE : (this.level.mainWidthTiles ?? this.level.widthTiles) * TILE;
+    const cam = this.cameras.main;
+    cam.setBounds(x0, 0, x1 - x0, this.level.heightTiles * TILE);
+    this.camTarget.setPosition(lead.x, GAME_HEIGHT / 2);
+    cam.setScroll(Math.min(Math.max(lead.x - GAME_WIDTH / 2, x0), x1 - GAME_WIDTH), 0);
   }
 
   private updateCamera(dt: number): void {
@@ -373,7 +444,12 @@ export class GameScene extends Phaser.Scene {
       tile.setData('kind', 'used');
       const reward = (tile.getData('reward') as string | undefined) ?? 'coin';
       if (reward === 'coin') this.popCoin(tile.x, tile.y - TILE);
-      else this.spawnItem(reward === 'heart' ? 'heart' : 'flor-de-fogo', tile.x, tile.y);
+      else {
+        // A flor de fogo só aparece para quem já é grande; se alguém está pequeno, o bloco entrega a fruta.
+        const anySmall = this.players.some((p) => !p.dead && !p.isBig);
+        const kind = reward === 'heart' ? 'heart' : reward === 'grow' || anySmall ? 'grow' : 'flor-de-fogo';
+        this.spawnItem(kind, tile.x, tile.y);
+      }
     }
   }
 
@@ -427,8 +503,8 @@ export class GameScene extends Phaser.Scene {
     this.grantCoin(1);
   }
 
-  private spawnItem(kind: 'flor-de-fogo' | 'heart', x: number, y: number): void {
-    const key = kind === 'heart' ? 'heart-full' : 'item-flower';
+  private spawnItem(kind: 'flor-de-fogo' | 'heart' | 'grow', x: number, y: number): void {
+    const key = kind === 'heart' ? 'heart-full' : kind === 'grow' ? 'item-grow' : 'item-flower';
     const item = this.items.create(x, y, key) as Phaser.Physics.Arcade.Sprite;
     item.setDepth(DEPTH.tiles - 1);
     item.setData('kind', kind);
@@ -466,7 +542,10 @@ export class GameScene extends Phaser.Scene {
     item.destroy();
     this.progress.addScore(ITEM_SCORE);
     this.sfx.play('powerup');
-    if (kind === 'heart') player.vitality.heal(1);
+    if (kind === 'heart') {
+      player.vitality.heal(1);
+      player.grow();
+    } else if (kind === 'grow') player.grow();
     else player.powers.collect('flor-de-fogo');
   }
 

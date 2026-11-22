@@ -74,6 +74,7 @@ with sync_playwright() as pw:
     check('moeda coletada pela Bara vai para a equipe (moedas e pontos)', st['coins'] == 1 and st['score'] == 50, f"moedas={st['coins']} pontos={st['score']}")
 
     fresh(pg)
+    ev(pg, f"{SC}.players.forEach(p => p.vitality.reset())")  # começam pequenos; aqui testamos com os 3 corações
     ev(pg, f"{SC}.players[1].takeHit(0)"); pg.wait_for_timeout(200)
     st = state(pg)
     check('dano na Bara tira coração só dela', st['players'][1]['hp'] == 2 and st['players'][0]['hp'] == 3, f"Zion={st['players'][0]['hp']} Bara={st['players'][1]['hp']}")
@@ -110,7 +111,7 @@ with sync_playwright() as pw:
     check('morte da Bara custa 1 vida da equipe e o Zion segue em jogo', st['lives'] == 4 and st['players'][1]['dead'] and not st['players'][0]['dead'], f"vidas={st['lives']}")
     pg.wait_for_timeout(1700)
     st = state(pg)
-    check('a Bara renasce perto do Zion, com os 3 corações', not st['players'][1]['dead'] and st['players'][1]['hp'] == 3 and abs(st['players'][1]['x'] - st['players'][0]['x']) < 120,
+    check('a Bara renasce perto do Zion, pequena (1 coração)', not st['players'][1]['dead'] and st['players'][1]['hp'] == 1 and abs(st['players'][1]['x'] - st['players'][0]['x']) < 120,
           f"Zion={st['players'][0]['x']} Bara={st['players'][1]['x']}")
 
     # --- Os dois morrem: checkpoint

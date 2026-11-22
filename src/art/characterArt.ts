@@ -145,6 +145,23 @@ export const ZION_ANIMS: Record<
         mouth: 'grin',
       }),
   },
+  // Agachado: tronco desce até a altura dos joelhos, pernas dobradas para os lados, braços apoiados.
+  crouch: {
+    frames: 1,
+    frameRate: 1,
+    repeat: 0,
+    pose: () =>
+      pose({
+        legF: { dx: 11, dy: 0 },
+        legB: { dx: -9, dy: 0 },
+        armF: { dx: 7, dy: 1 },
+        armB: { dx: -5, dy: 1 },
+        squash: 16,
+        lean: 2,
+        eyes: 'open',
+        mouth: 'smile',
+      }),
+  },
   hurt: {
     frames: 1,
     frameRate: 1,

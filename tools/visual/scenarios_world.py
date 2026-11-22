@@ -53,7 +53,7 @@ with sync_playwright() as pw:
     jump_under(pg, 8)  # bloco surpresa continua sendo surpresa
     st = state(pg)
     kind = ev(pg, f"{SC}.grid.kindAt(8, 6)")
-    check('bloco surpresa não quebra: continua no lugar e entrega a moeda', kind == 'surprise' and st['coins'] == 1, f"tipo={kind} moedas={st['coins']}")
+    check('bloco surpresa não quebra: continua no lugar e solta a Fruta de Baraúna', kind == 'surprise' and st['items'] >= 1, f"tipo={kind} itens={st['items']}")
 
     fresh(pg)
     ev(pg, f"(() => {{ const s={SC}; s.grid.removeCell(7,6); return null; }})()")

@@ -1,6 +1,6 @@
 import type { LevelData } from './types';
 
-export type CellKind = 'ground' | 'platform' | 'brick' | 'surprise' | 'stone';
+export type CellKind = 'ground' | 'platform' | 'brick' | 'surprise' | 'stone' | 'pipe';
 
 /** Só tijolos podem ser quebrados; pedra e terreno não. */
 export const isBreakable = (kind: CellKind | undefined): boolean => kind === 'brick';
@@ -21,6 +21,11 @@ export class TileGrid {
       for (let i = 0; i < p.w; i++) this.cells.set(TileGrid.key(p.x + i, p.y), 'platform');
     }
     for (const b of level.blocks) this.cells.set(TileGrid.key(b.x, b.y), b.kind);
+    for (const pipe of level.pipes) {
+      for (let dx = 0; dx < 2; dx++) {
+        for (let h = 1; h <= pipe.h; h++) this.cells.set(TileGrid.key(pipe.x + dx, level.groundRow - h), 'pipe');
+      }
+    }
   }
 
   static key(col: number, row: number): string {

@@ -2,6 +2,11 @@ export type HitResult = 'ignored' | 'hurt' | 'dead';
 
 export const INVULNERABILITY_AFTER_HIT = 1.6;
 
+/** Vida ao começar ou renascer: o personagem é pequeno (1 coração) até pegar uma Fruta de Baraúna. */
+export const START_HP = 1;
+/** A partir deste número de corações o personagem é grande. */
+export const BIG_HP = 2;
+
 /** Pontos de vida (corações) e janela de invulnerabilidade de um personagem. */
 export class Vitality {
   hp: number;
@@ -41,8 +46,17 @@ export class Vitality {
     this.invulnerableFor = Math.max(0, this.invulnerableFor - dt);
   }
 
-  reset(): void {
-    this.hp = this.maxHp;
+  /** Cresce: sobe para o tamanho grande (no mínimo BIG_HP corações). */
+  grow(): void {
+    if (this.hp > 0) this.hp = Math.min(this.maxHp, Math.max(this.hp, BIG_HP));
+  }
+
+  get isBig(): boolean {
+    return this.hp >= BIG_HP;
+  }
+
+  reset(hp: number = this.maxHp): void {
+    this.hp = Math.min(this.maxHp, hp);
     this.invulnerableFor = 0;
   }
 }

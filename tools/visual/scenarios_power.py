@@ -47,7 +47,8 @@ with sync_playwright() as pw:
     pg.screenshot(path=f'{SHOTS}/pw_item.png')
     grab_item(pg); pg.wait_for_timeout(500)
     st = state(pg)
-    check('coletar o item equipa a Flor de Fogo (+200 pontos)', st['power'] == 'flor-de-fogo' and st['score'] >= 200 and st['items'] == 0, f"poder={st['power']} pontos={st['score']} hp={st['hp']} x={st['x']} y={st['y']}")
+    check('coletar o item (jogador pequeno recebe a Fruta de Baraúna e cresce, +200)', st['hp'] >= 2 and st['score'] >= 200 and st['items'] == 0, f"poder={st['power']} pontos={st['score']} hp={st['hp']} x={st['x']} y={st['y']}")
+    ev(pg, f"{SC}.player.powers.collect('flor-de-fogo')"); pg.wait_for_timeout(200)
 
     # --- Disparo, limite e cooldown
     tp(pg, 3, 8); ev(pg, f"{SC}.player.powers.collect('flor-de-fogo')"); pg.wait_for_timeout(500)
@@ -66,7 +67,7 @@ with sync_playwright() as pw:
 
     # --- Bola de fogo derrota inimigo
     fresh(pg, enemies=True)
-    ev(pg, f"(() => {{ const s={SC}; const e=s.enemies.find(e=>Math.abs(e.x-28.5*{T})<150); window.__e=e; e.tick=()=>true; e.arcadeBody.setVelocityX(0); s.player.respawn(e.x-6*{T}, 9*{T}); s.player.powers.collect('flor-de-fogo'); return null; }})()")
+    ev(pg, f"(() => {{ const s={SC}; const e=s.enemies.find(e=>Math.abs(e.x-28.5*{T})<150); window.__e=e; e.tick=()=>true; e.arcadeBody.setVelocityX(0); s.player.respawn(e.x-1.8*{T}, 9*{T}); s.player.powers.collect('flor-de-fogo'); return null; }})()")
     pg.wait_for_timeout(500)
     en0 = state(pg)['enemies']; sc0 = state(pg)['score']
     pg.keyboard.press('x'); pg.wait_for_timeout(1500)

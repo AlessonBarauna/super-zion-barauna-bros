@@ -1,5 +1,6 @@
 import { BOSS_BY_WORLD } from '../systems/boss';
-import type { BlockSpec, EnemySpec, GroundSegment, LevelData, MovingPlatformSpec, PlatformSpec, TilePoint, WorldTheme } from './types';
+import { caveRoom, houseRoom, ROOM_W, roomEntry } from './rooms';
+import type { BlockReward, BlockSpec, DoorSpec, EnemySpec, GroundSegment, LevelData, MovingPlatformSpec, PipeSpec, PlatformSpec, TilePoint, WorldTheme } from './types';
 
 /**
  * Gerador determinístico de fases a partir de "trechos" (chunks) validados.
@@ -51,7 +52,7 @@ const line = (x0: number, x1: number, y: number): TilePoint[] => {
   return out;
 };
 
-type ChunkKind = 'flat' | 'gap' | 'platforms' | 'bridge' | 'spikes' | 'stairs';
+type ChunkKind = 'flat' | 'gap' | 'platforms' | 'bridge' | 'spikes' | 'stairs' | 'pipes' | 'warp-pipe' | 'warp-door';
 
 /** Fase gerada: etapa 1..3 (a 4 é a arena do chefão). */
 export function generateLevel(world: number, stage: number): LevelData {
@@ -66,8 +67,16 @@ export function generateLevel(world: number, stage: number): LevelData {
   const movingPlatforms: MovingPlatformSpec[] = [];
   const blocks: BlockSpec[] = [];
   const coins: TilePoint[] = [];
+  // Perto do início sempre há uma Fruta de Baraúna, pois o personagem começa pequeno.
+  const introRow = 5 + Math.floor(rand() * 2);
+  blocks.push({ kind: 'brick', x: 7, y: introRow }, { kind: 'surprise', x: 8, y: introRow, reward: 'grow' }, { kind: 'brick', x: 9, y: introRow });
+  if (rand() < 0.5) blocks.push({ kind: 'surprise', x: 8, y: introRow - 3, reward: 'coin' });
   const enemies: EnemySpec[] = [];
   const spikes: TilePoint[] = [];
+  const pipes: PipeSpec[] = [];
+  const doors: DoorSpec[] = [];
+  /** Atalhos para as salas secretas: preenchidos quando os trechos de cano/porta são criados. */
+  const warpSlots: Array<{ kind: 'cano' | 'porta'; pipeIndex?: number; doorIndex?: number; exitX: number }> = [];
   const flatSpans: Array<{ from: number; to: number }> = [];
 
   let x = 0;
@@ -78,12 +87,13 @@ export function generateLevel(world: number, stage: number): LevelData {
   coins.push(...line(5, 7, 8));
 
   const chunkCount = 9 + stage * 2 + Math.round(difficulty * 4);
-  const kinds: ChunkKind[] = ['flat', 'gap', 'platforms', 'spikes', 'stairs'];
+  const kinds: ChunkKind[] = ['flat', 'gap', 'platforms', 'spikes', 'stairs', 'pipes'];
   if (world >= 2 || stage >= 2) kinds.push('bridge');
 
   let lastKind: ChunkKind = 'flat';
   for (let n = 0; n < chunkCount; n++) {
-    let kind = pick(kinds);
+    let kind = n === 2 ? 'warp-pipe' : n === 5 ? 'warp-door' : pick(kinds);
+    if (n === 2 || n === 5) lastKind = 'flat';
     // Evita repetir trechos perigosos em sequência e sempre intercala terreno firme.
     if (kind !== 'flat' && kind === lastKind) kind = 'flat';
     if (lastKind === 'gap' || lastKind === 'bridge') kind = 'flat';
@@ -120,6 +130,29 @@ export function generateLevel(world: number, stage: number): LevelData {
       movingPlatforms.push({ x: prevTo + 1, y: GROUND_ROW, w: 3, axis: 'x', range: gap - 3, period: 7 });
       coins.push(...line(prevTo + 3, prevTo + 6, 7));
       x = prevTo + 1 + gap;
+    } else if (kind === 'pipes') {
+      const len = 13;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + len - 1 });
+      const h1 = 2 + Math.floor(rand() * 2);
+      pipes.push({ x: start + 3, h: h1 }, { x: start + 9, h: 2 });
+      coins.push({ x: start + 3, y: 8 - h1 }, { x: start + 4, y: 8 - h1 }, { x: start + 9, y: 6 }, { x: start + 10, y: 6 });
+      x = start + len;
+    } else if (kind === 'warp-pipe') {
+      const len = 14;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + len - 1 });
+      pipes.push({ x: start + 5, h: 2 });
+      warpSlots.push({ kind: 'cano', pipeIndex: pipes.length - 1, exitX: start + 9 });
+      coins.push(...line(start + 11, start + 12, 8));
+      x = start + len;
+    } else if (kind === 'warp-door') {
+      const len = 14;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + len - 1 });
+      doors.push({ x: start + 6, to: { x: 0, y: 8 } });
+      warpSlots.push({ kind: 'porta', doorIndex: doors.length - 1, exitX: start + 9 });
+      x = start + len;
     } else if (kind === 'platforms') {
       const len = 12;
       ground.push({ from: start, to: start + len - 1 });
@@ -127,8 +160,10 @@ export function generateLevel(world: number, stage: number): LevelData {
       platforms.push({ x: start + 2, y: 6, w: 3 }, { x: start + 7, y: 4, w: 3 });
       coins.push(...line(start + 2, start + 4, 5), ...line(start + 7, start + 9, 3));
       const reward = rand() < 0.5 ? 'flor-de-fogo' : 'heart';
-      blocks.push({ kind: 'surprise', x: start + 5, y: 6 - 0 }, { kind: 'brick', x: start + 10, y: 6 });
-      if (rand() < 0.6) blocks.push({ kind: 'surprise', x: start + 11, y: 6, reward });
+      const rowA = pick([4, 5, 6]);
+      const rowB = pick([5, 6]);
+      blocks.push({ kind: 'surprise', x: start + 5, y: rowA }, { kind: 'brick', x: start + 10, y: rowB });
+      if (rand() < 0.6) blocks.push({ kind: 'surprise', x: start + 11, y: rowB === 6 ? 5 : 6, reward });
       enemies.push({ kind: 'cogumelo-sombrio', x: start + 9, y: 8 });
       x = start + len;
     } else if (kind === 'spikes') {
@@ -154,17 +189,45 @@ export function generateLevel(world: number, stage: number): LevelData {
   ground.push({ from: endStart, to: endStart + 13 });
   flatSpans.push({ from: endStart, to: endStart + 13 });
   const goalX = endStart + 10;
-  const widthTiles = endStart + 14;
+  const mainWidth = endStart + 14;
+
+  // Salas secretas depois do fim da fase: cada cano/porta tem a sua e a saída volta para perto da entrada.
+  const rooms: LevelData['rooms'] = [];
+  const roomKits: Array<ReturnType<typeof caveRoom>> = [];
+  let roomX = mainWidth + 10;
+  for (const slot of warpSlots) {
+    const back = { x: slot.exitX, y: 8 };
+    const grow: BlockReward = rand() < 0.5 ? 'flor-de-fogo' : 'heart';
+    const kit = slot.kind === 'cano' ? caveRoom(roomX, back, world) : houseRoom(roomX, back, grow);
+    roomKits.push(kit);
+    rooms.push(kit.room);
+    const entry = roomEntry(kit.room);
+    if (slot.pipeIndex !== undefined) pipes[slot.pipeIndex] = { ...pipes[slot.pipeIndex]!, to: entry };
+    if (slot.doorIndex !== undefined) doors[slot.doorIndex] = { ...doors[slot.doorIndex]!, to: entry };
+    roomX += ROOM_W + 4;
+  }
+  for (const kit of roomKits) {
+    ground.push(kit.ground);
+    blocks.push(...kit.blocks);
+    platforms.push(...kit.platforms);
+    coins.push(...kit.coins);
+    pipes.push(...kit.pipes);
+    doors.push(...kit.doors);
+  }
+  for (let y = 0; y < GROUND_ROW; y++) blocks.push({ kind: 'stone', x: mainWidth - 1, y });
+  const widthTiles = rooms.length > 0 ? roomX - 4 : mainWidth;
 
   // Checkpoints no meio de trechos planos livres de espinhos, inimigos e blocos.
   const taken = (c: number): boolean =>
     spikes.some((s) => Math.abs(s.x - c) <= 1) ||
     enemies.some((e) => Math.abs(e.x - c) <= 1) ||
-    blocks.some((b) => Math.abs(b.x - c) <= 0);
+    blocks.some((b) => Math.abs(b.x - c) <= 0) ||
+    pipes.some((p) => c >= p.x - 2 && c <= p.x + 3) ||
+    doors.some((d) => Math.abs(d.x - c) <= 2);
   const checkpoints: TilePoint[] = [];
   for (const frac of [0.4, 0.7]) {
     const target = Math.floor(widthTiles * frac);
-    const span = flatSpans.find((f) => f.to - f.from >= 8 && f.from > 12 && f.to >= target);
+    const span = flatSpans.find((f) => f.to - f.from >= 8 && f.from > 12 && f.to >= target && f.to < mainWidth);
     if (!span) continue;
     for (let c = Math.max(span.from + 2, target); c <= span.to - 2; c++) {
       if (!taken(c) && !checkpoints.some((k) => Math.abs(k.x - c) < 8) && c < goalX - 6) {
@@ -180,6 +243,8 @@ export function generateLevel(world: number, stage: number): LevelData {
       e.kind === 'corvo-umbral' ||
       (!spikes.some((s) => Math.abs(s.x - e.x) <= 1) &&
         !blocks.some((b) => b.kind === 'stone' && Math.abs(b.x - e.x) <= 1) &&
+        !pipes.some((p) => e.x >= p.x - 1 && e.x <= p.x + 2) &&
+        !doors.some((d) => Math.abs(d.x - e.x) <= 2) &&
         !checkpoints.some((c) => Math.abs(c.x - e.x) <= 1) &&
         e.x < goalX - 3),
   );
@@ -190,6 +255,7 @@ export function generateLevel(world: number, stage: number): LevelData {
     world,
     theme: info.theme,
     widthTiles,
+    mainWidthTiles: mainWidth,
     heightTiles: HEIGHT,
     groundRow: GROUND_ROW,
     timeLimit: 320 + Math.round(widthTiles * 0.5),
@@ -197,6 +263,9 @@ export function generateLevel(world: number, stage: number): LevelData {
     ground,
     platforms,
     movingPlatforms,
+    pipes,
+    doors,
+    rooms,
     blocks: dedupeBlocks(blocks),
     coins: coins.filter((c) => !blocks.some((b) => b.x === c.x && b.y === c.y)),
     enemies: cleanEnemies,
@@ -239,8 +308,12 @@ export function generateBossArena(world: number): LevelData {
       { x: 16, y: 6, w: 3 },
     ],
     movingPlatforms: [],
+    pipes: [],
+    doors: [],
+    rooms: [],
     blocks: [
       ...walls,
+      { kind: 'surprise', x: 8, y: 6, reward: 'grow' },
       { kind: 'surprise', x: 10, y: 6, reward: 'flor-de-fogo' },
       { kind: 'surprise', x: 12, y: 6, reward: 'heart' },
     ],

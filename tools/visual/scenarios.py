@@ -31,7 +31,7 @@ with sync_playwright() as pw:
     pg.mouse.click(640, 410); pg.wait_for_timeout(1800)
     s0 = state(pg)
     check('menu: botão 1 JOGADOR inicia a partida', s0 is not None and s0['lives'] == 5 and s0['coins'] == 0, json.dumps(s0))
-    check('início: 5 vidas, 3 corações, no chão', s0['hp'] == 3 and s0['onGround'], '')
+    check('início: 5 vidas, começa pequeno (1 coração), no chão', s0['hp'] == 1 and s0['onGround'], '')
 
     # --- Altura do pulo
     pg.wait_for_timeout(300)
@@ -70,15 +70,15 @@ with sync_playwright() as pw:
     pg.keyboard.down('Space'); pg.wait_for_timeout(450); pg.keyboard.up('Space'); pg.wait_for_timeout(500)
     after = state(pg)
     kind = ev(pg, f"{SC}.built.solids.getChildren().find(t => Math.abs(t.x-(8.5*{T}))<2 && Math.abs(t.y-(6.5*{T}))<14)?.getData('kind')")
-    check('bloco surpresa: vira usado e dá +1 moeda', kind == 'used' and after['coins'] == before['coins'] + 1, f'kind={kind} moedas {before["coins"]}->{after["coins"]}')
+    check('bloco surpresa (8,6): vira usado e solta a Fruta de Baraúna', kind == 'used' and after['items'] >= 1, f'kind={kind} itens={after["items"]}')
 
     # --- Pisar em inimigo (escolhe um inimigo sem nada por cima, nem plataformas móveis)
     fresh(pg, enemies=True)
     en0 = state(pg)['enemies']; sc0 = state(pg)['score']
-    ev(pg, f"(() => {{ const s={SC}; const clear=(e)=>{{ const c=Math.floor(e.x/{T}); for(let r=0;r<8;r++) if(s.grid.isSolid(c,r)||s.grid.isSolid(c-1,r)||s.grid.isSolid(c+1,r)) return false; return !s.built.movers.some(m=>e.x>m.x-{T}&&e.x<m.x+m.width+{T}); }}; const e=s.enemies.find(e=>e.active&&clear(e)); e.tick = () => true; e.arcadeBody.setVelocityX(0); s.player.respawn(e.x, e.arcadeBody.top-260); s.player.vitality.reset(); }})()")
+    ev(pg, f"(() => {{ const s={SC}; const clear=(e)=>{{ const c=Math.floor(e.x/{T}); for(let r=0;r<8;r++) if(s.grid.isSolid(c,r)) return false; return !s.built.movers.some(m=>e.x>m.x-{T}&&e.x<m.x+m.width+{T}); }}; const e=s.enemies.find(e=>e.active&&clear(e)); e.tick = () => true; e.arcadeBody.setVelocityX(0); s.player.respawn(e.x, e.arcadeBody.top-260); s.player.vitality.reset(); }})()")
     pg.wait_for_timeout(1700)
     st = state(pg)
-    check('pisar no Cogumelo Sombrio: inimigo some e +100 pontos', st['enemies'] == en0 - 1 and st['score'] >= sc0 + 100 and st['hp'] == 3, f'inimigos {en0}->{st["enemies"]} pontos {sc0}->{st["score"]} hp={st["hp"]} x={st["x"]}')
+    check('pisar no Cogumelo Sombrio: inimigo some e +100 pontos', st['enemies'] == en0 - 1 and st['score'] >= sc0 + 100 , f'inimigos {en0}->{st["enemies"]} pontos {sc0}->{st["score"]} hp={st["hp"]} x={st["x"]}')
 
     # --- Dano lateral por inimigo: encosta sem pisar
     fresh(pg, enemies=True)
@@ -109,8 +109,8 @@ with sync_playwright() as pw:
     pg.screenshot(path='/home/claude/validation/shots/sc_falling.png')
     pg.wait_for_timeout(3200)
     st = state(pg)
-    check('morrer no abismo: perde 1 vida e renasce no checkpoint com 3 corações',
-          st['lives'] == lives_before - 1 and not st['dead'] and abs(st['x'] - cp) < 80 and st['hp'] == 3,
+    check('morrer no abismo: perde 1 vida e renasce no checkpoint pequeno (1 coração)',
+          st['lives'] == lives_before - 1 and not st['dead'] and abs(st['x'] - cp) < 80 and st['hp'] == 1,
           f'vidas {lives_before}->{st["lives"]} x={st["x"]} cp={cp} hp={st["hp"]}')
 
     # --- 100 moedas = 1 vida

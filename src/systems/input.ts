@@ -13,6 +13,8 @@ export interface InputProfile {
   jump: string[];
   run: string[];
   power: string[];
+  /** Entrar em canos e portas. */
+  down: string[];
 }
 
 /**
@@ -27,6 +29,7 @@ export const INPUT_PROFILES = {
     jump: ['SPACE', 'UP', 'W'],
     run: ['SHIFT'],
     power: ['X'],
+    down: ['S', 'DOWN'],
   },
   /** Bara (jogador 2, cooperativo local). */
   player2: {
@@ -35,6 +38,7 @@ export const INPUT_PROFILES = {
     jump: ['I'],
     run: ['K'],
     power: ['U'],
+    down: ['O'],
   },
 } as const satisfies Record<string, InputProfile>;
 
@@ -50,6 +54,7 @@ export class KeyboardControls implements ControlSource {
   private readonly jump: Phaser.Input.Keyboard.Key[];
   private readonly run: Phaser.Input.Keyboard.Key[];
   private readonly power: Phaser.Input.Keyboard.Key[];
+  private readonly down: Phaser.Input.Keyboard.Key[];
 
   constructor(scene: Phaser.Scene, profile: InputProfile) {
     const kb = scene.input.keyboard;
@@ -60,6 +65,7 @@ export class KeyboardControls implements ControlSource {
     this.jump = keys(profile.jump);
     this.run = keys(profile.run);
     this.power = keys(profile.power);
+    this.down = keys(profile.down);
   }
 
   poll(): PlayerControls {
@@ -72,6 +78,8 @@ export class KeyboardControls implements ControlSource {
       jumpPressed: this.jump.some((k) => Phaser.Input.Keyboard.JustDown(k)),
       jumpHeld: this.jump.some((k) => k.isDown),
       powerPressed: this.power.some((k) => Phaser.Input.Keyboard.JustDown(k)),
+      downPressed: this.down.some((k) => Phaser.Input.Keyboard.JustDown(k)),
+      downHeld: this.down.some((k) => k.isDown),
     };
   }
 }
@@ -80,6 +88,7 @@ export class KeyboardControls implements ControlSource {
 export class GamepadControls implements ControlSource {
   private prevJump = false;
   private prevPower = false;
+  private prevDown = false;
 
   constructor(private readonly index: number) {}
 
@@ -94,11 +103,13 @@ export class GamepadControls implements ControlSource {
       return { moveX: 0, run: false, jumpPressed: false, jumpHeld: false, powerPressed: false };
     }
     const cmd = mapPad({ axes: pad.axes, buttons: pad.buttons.map((b) => b.pressed) });
+    const downPressed = cmd.down && !this.prevDown;
+    this.prevDown = cmd.down;
     const jumpPressed = cmd.jump && !this.prevJump;
     const powerPressed = cmd.power && !this.prevPower;
     this.prevJump = cmd.jump;
     this.prevPower = cmd.power;
-    return { moveX: cmd.moveX, run: cmd.run, jumpPressed, jumpHeld: cmd.jump, powerPressed };
+    return { moveX: cmd.moveX, run: cmd.run, jumpPressed, jumpHeld: cmd.jump, powerPressed, downPressed, downHeld: cmd.down };
   }
 }
 
@@ -115,6 +126,8 @@ export class CombinedControls implements ControlSource {
       jumpPressed: polled.some((p) => p.jumpPressed),
       jumpHeld: polled.some((p) => p.jumpHeld),
       powerPressed: polled.some((p) => p.powerPressed),
+      downPressed: polled.some((p) => p.downPressed === true),
+      downHeld: polled.some((p) => p.downHeld === true),
     };
   }
 }
