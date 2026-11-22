@@ -12,7 +12,7 @@ import {
   type MovementState,
   type PlayerAnimation,
 } from '../../systems/movement';
-import { PowerState } from '../../systems/powers';
+import { PowerState, type PowerId } from '../../systems/powers';
 import { START_HP, Vitality } from '../../systems/vitality';
 import type { CharacterDef } from './characters';
 
@@ -143,6 +143,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.placeOnGround(x, bottomY);
     body.setVelocity(0, 0);
     this.mv = { ...createMovementState(), facing: this.mv.facing };
+  }
+
+  /** Começa a fase com o tamanho e o poder que o jogador trazia da fase anterior. */
+  restore(hp: number, power: PowerId | null): void {
+    this.vitality.reset(hp);
+    this.applySize();
+    if (power) this.powers.collect(power);
   }
 
   /** Pegou a Fruta de Baraúna. */
