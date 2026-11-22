@@ -78,7 +78,7 @@ describe('chefões', () => {
     const walking = createBoss(def);
     expect(damageBoss(walking, 'stomp').hit).toBe(false);
     expect(damageBoss(walking, 'fire').hit).toBe(true);
-    const stunned: BossState = { ...walking, mode: 'stunned', timer: 2 };
+    const stunned: BossState = { ...walking, mode: 'stunned', stunBy: 'wall', timer: 2 };
     const r = damageBoss(stunned, 'stomp');
     expect(r.hit).toBe(true);
     expect(r.state.hp).toBe(def.hp - 2);
@@ -105,7 +105,7 @@ describe('chefões', () => {
 
   it('o jogo termina: seis pisões ou seis golpes de fogo derrotam o Gronk', () => {
     let s = createBoss(def);
-    for (let i = 0; i < 3; i++) s = damageBoss({ ...s, mode: 'stunned', invuln: 0 }, 'stomp').state;
+    for (let i = 0; i < 3; i++) s = damageBoss({ ...s, mode: 'stunned', stunBy: 'wall', invuln: 0 }, 'stomp').state;
     expect(s.mode).toBe('dead');
   });
 

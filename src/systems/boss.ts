@@ -9,6 +9,22 @@ import type { BossKind } from '../levels/types';
 /** Ataques especiais: disparo de orbes rasteiros, salto com onda de choque e chuva de pedras. */
 export type SpecialKind = 'shot' | 'leap' | 'rain';
 
+/** O que deixa o chefão atordoado (e, por isso, vulnerável ao pisão). */
+export type StunSource = 'wall' | 'quake' | 'shot' | 'rain' | 'rocks';
+
+/**
+ * Como cada chefão é vencido.
+ * - stomp[fonte]: dano do pisão enquanto atordoado por essa fonte (ausente/0 = pisão não machuca; a fonte nem atordoa);
+ * - stomp.cast: dano do pisão enquanto ele se prepara para atacar (interrompe o ataque);
+ * - fire: dano da bola de fogo (0 = imune);
+ * - rocks: dano quando uma pedra da própria chuva cai nele (0 = imune).
+ */
+export interface BossWeakness {
+  stomp: Partial<Record<StunSource | 'cast', number>>;
+  fire: number;
+  rocks: number;
+}
+
 export interface BossDef {
   id: BossKind;
   name: string;
@@ -18,17 +34,52 @@ export interface BossDef {
   speed: number;
   /** Ataques que o chefão alterna (vazio = só a investida). */
   specials: SpecialKind[];
+  weakness: BossWeakness;
+  /** Dica mostrada no início da luta. */
+  hint: string;
 }
 
 export const BOSSES: Record<BossKind, BossDef> = {
-  gronk: { id: 'gronk', name: 'Gronk', world: 1, hp: 6, speed: 1.0, specials: [] },
-  kragor: { id: 'kragor', name: 'Kragor', world: 2, hp: 6, speed: 1.05, specials: ['rain'] },
-  sakhur: { id: 'sakhur', name: 'Sakhur', world: 3, hp: 7, speed: 1.1, specials: ['leap'] },
-  frostak: { id: 'frostak', name: 'Frostak', world: 4, hp: 7, speed: 1.15, specials: ['shot'] },
-  vyrak: { id: 'vyrak', name: 'Vyrak', world: 5, hp: 8, speed: 1.2, specials: ['shot', 'rain'] },
-  mechazord: { id: 'mechazord', name: 'Mechazord', world: 6, hp: 8, speed: 1.25, specials: ['leap', 'shot'] },
-  auron: { id: 'auron', name: 'Auron', world: 7, hp: 9, speed: 1.3, specials: ['rain', 'shot'] },
-  umbrax: { id: 'umbrax', name: 'Umbrax', world: 8, hp: 10, speed: 1.4, specials: ['leap', 'rain', 'shot'] },
+  gronk: {
+    id: 'gronk', name: 'Gronk', world: 1, hp: 6, speed: 1.0, specials: [],
+    weakness: { stomp: { wall: 2 }, fire: 1, rocks: 0 },
+    hint: 'Espere ele bater na parede e pise nele!',
+  },
+  kragor: {
+    id: 'kragor', name: 'Kragor', world: 2, hp: 6, speed: 1.05, specials: ['rain'],
+    weakness: { stomp: { wall: 1, rocks: 2 }, fire: 0, rocks: 3 },
+    hint: 'Pele de pedra: fogo não adianta. Fique perto dele para as pedras caírem nele!',
+  },
+  sakhur: {
+    id: 'sakhur', name: 'Sakhur', world: 3, hp: 7, speed: 1.1, specials: ['leap'],
+    weakness: { stomp: { quake: 3 }, fire: 1, rocks: 0 },
+    hint: 'Desvie do salto e pise nele quando pousar cansado!',
+  },
+  frostak: {
+    id: 'frostak', name: 'Frostak', world: 4, hp: 7, speed: 1.15, specials: ['shot'],
+    weakness: { stomp: { wall: 1 }, fire: 2, rocks: 0 },
+    hint: 'É de gelo: o fogo derrete (dói o dobro). Pisão faz pouco efeito.',
+  },
+  vyrak: {
+    id: 'vyrak', name: 'Vyrak', world: 5, hp: 8, speed: 1.2, specials: ['shot', 'rain'],
+    weakness: { stomp: { cast: 2 }, fire: 1, rocks: 0 },
+    hint: 'Casca dura: só dá pra pisar nele enquanto ele se prepara para atacar!',
+  },
+  mechazord: {
+    id: 'mechazord', name: 'Mechazord', world: 6, hp: 8, speed: 1.25, specials: ['leap', 'shot'],
+    weakness: { stomp: { wall: 1, shot: 3 }, fire: 0, rocks: 0 },
+    hint: 'Fogo não adianta. Depois de atirar ele superaquece: pise nele!',
+  },
+  auron: {
+    id: 'auron', name: 'Auron', world: 7, hp: 9, speed: 1.3, specials: ['rain', 'shot', 'rain'],
+    weakness: { stomp: { rain: 3 }, fire: 1, rocks: 0 },
+    hint: 'Ele cansa depois de chamar a chuva de pedras. Pise nele ou use fogo!',
+  },
+  umbrax: {
+    id: 'umbrax', name: 'Umbrax', world: 8, hp: 10, speed: 1.4, specials: ['leap', 'rain', 'shot'],
+    weakness: { stomp: { wall: 1, quake: 2, shot: 2, rain: 2, rocks: 2 }, fire: 1, rocks: 2 },
+    hint: 'Qualquer cansaço dele vale: pise! Fogo e as próprias pedras dele também ferem.',
+  },
 };
 
 export const BOSS_BY_WORLD: BossKind[] = ['gronk', 'kragor', 'sakhur', 'frostak', 'vyrak', 'mechazord', 'auron', 'umbrax'];
@@ -47,6 +98,8 @@ export interface BossState {
   cycle: number;
   /** Ataque especial em preparo/execução. */
   special: SpecialKind | null;
+  /** O que causou o atordoamento atual. */
+  stunBy: StunSource | null;
 }
 
 /** Algo que o chefão quer fazer neste quadro; quem desenha cria os perigos. */
@@ -70,7 +123,6 @@ export const BOSS_TIMING = {
   leapSpeed: 190,
 } as const;
 
-export const STOMP_DAMAGE = 2;
 export const FIRE_DAMAGE = 1;
 
 export interface BossContext {
@@ -82,8 +134,14 @@ export interface BossContext {
   onGround?: boolean;
 }
 
+function stun(s: BossState, by: StunSource): void {
+  s.mode = 'stunned';
+  s.stunBy = by;
+  s.timer = BOSS_TIMING.stunned;
+}
+
 export function createBoss(def: BossDef): BossState {
-  return { hp: def.hp, mode: 'walk', timer: BOSS_TIMING.walk, dir: -1, invuln: 0, cycle: 0, special: null };
+  return { hp: def.hp, mode: 'walk', timer: BOSS_TIMING.walk, dir: -1, invuln: 0, cycle: 0, special: null, stunBy: null };
 }
 
 /** Fase 2 do chefão: com metade da vida ou menos, ele fica mais rápido e menos paciente. */
@@ -119,9 +177,12 @@ export function stepBoss(prev: BossState, def: BossDef, dt: number, ctx: BossCon
     case 'charge':
       vx = s.dir * BOSS_TIMING.chargeSpeed * def.speed * (rage ? 1.25 : 1);
       if (ctx.hitWall) {
-        s.mode = 'stunned';
-        s.timer = BOSS_TIMING.stunned;
         vx = 0;
+        if ((def.weakness.stomp.wall ?? 0) > 0) stun(s, 'wall');
+        else {
+          s.mode = 'recover';
+          s.timer = BOSS_TIMING.recover;
+        }
       } else if (s.timer <= 0) {
         s.mode = 'recover';
         s.timer = BOSS_TIMING.recover;
@@ -129,6 +190,7 @@ export function stepBoss(prev: BossState, def: BossDef, dt: number, ctx: BossCon
       break;
     case 'stunned':
       if (s.timer <= 0) {
+        s.stunBy = null;
         s.mode = 'recover';
         s.timer = BOSS_TIMING.recover;
       }
@@ -155,8 +217,12 @@ export function stepBoss(prev: BossState, def: BossDef, dt: number, ctx: BossCon
           action = { kind: 'leap' };
         } else {
           if (s.special) action = { kind: s.special };
-          s.mode = 'recover';
-          s.timer = BOSS_TIMING.recover;
+          if (s.special && (def.weakness.stomp[s.special] ?? 0) > 0) stun(s, s.special);
+          else {
+            s.mode = 'recover';
+            s.timer = BOSS_TIMING.recover;
+          }
+          s.special = null;
         }
       }
       break;
@@ -164,11 +230,14 @@ export function stepBoss(prev: BossState, def: BossDef, dt: number, ctx: BossCon
       vx = s.dir * BOSS_TIMING.leapSpeed * def.speed;
       const airborne = BOSS_TIMING.leapMax - s.timer;
       if ((airborne >= BOSS_TIMING.leapMin && ctx.onGround) || s.timer <= 0) {
-        s.mode = 'recover';
-        s.timer = BOSS_TIMING.recover;
         s.special = null;
         vx = 0;
         action = { kind: 'quake' };
+        if ((def.weakness.stomp.quake ?? 0) > 0) stun(s, 'quake');
+        else {
+          s.mode = 'recover';
+          s.timer = BOSS_TIMING.recover;
+        }
       }
       break;
     }
@@ -181,19 +250,50 @@ export interface DamageResult {
   /** O golpe causou dano. */
   hit: boolean;
   defeated: boolean;
+  /** O golpe foi inútil por causa da fraqueza do chefão (imune a este golpe agora). */
+  immune?: boolean;
 }
 
-/** Aplica um golpe. Pisão só machuca atordoado; fogo machuca exceto em imunidade ou durante a recuperação. */
-export function damageBoss(prev: BossState, kind: 'stomp' | 'fire'): DamageResult {
-  if (prev.mode === 'dead' || prev.invuln > 0) return { state: prev, hit: false, defeated: false };
-  if (kind === 'stomp' && prev.mode !== 'stunned') return { state: prev, hit: false, defeated: false };
-  if (kind === 'fire' && prev.mode === 'recover') return { state: prev, hit: false, defeated: false };
-  const hp = Math.max(0, prev.hp - (kind === 'stomp' ? STOMP_DAMAGE : FIRE_DAMAGE));
-  if (hp === 0) return { state: { ...prev, hp, mode: 'dead', timer: 0, invuln: 0 }, hit: true, defeated: true };
+export type DamageKind = 'stomp' | 'fire' | 'rock';
+
+const GRONK_WEAKNESS: BossWeakness = { stomp: { wall: 2 }, fire: 1, rocks: 0 };
+
+/**
+ * Aplica um golpe segundo a fraqueza do chefão.
+ * Pisão: só machuca atordoado pela fonte certa (ou durante o preparo, se for a fraqueza dele).
+ * Fogo: dano próprio de cada chefão (0 = imune), exceto em imunidade ou durante a recuperação.
+ * Pedra: só machuca quem é fraco à própria chuva; atordoa o chefão.
+ */
+export function damageBoss(prev: BossState, kind: DamageKind, weakness: BossWeakness = GRONK_WEAKNESS): DamageResult {
+  const miss = (immune = false): DamageResult => ({ state: prev, hit: false, defeated: false, immune });
+  if (prev.mode === 'dead' || prev.invuln > 0) return miss();
+  let amount = 0;
+  if (kind === 'stomp') {
+    if (prev.mode === 'stunned' && prev.stunBy) amount = weakness.stomp[prev.stunBy] ?? 0;
+    else if (prev.mode === 'cast') amount = weakness.stomp.cast ?? 0;
+    else return miss();
+    if (amount <= 0) return miss(true);
+  } else if (kind === 'fire') {
+    if (prev.mode === 'recover') return miss();
+    amount = weakness.fire;
+    if (amount <= 0) return miss(true);
+  } else {
+    if (weakness.rocks <= 0) return miss();
+    amount = weakness.rocks;
+  }
+  const hp = Math.max(0, prev.hp - amount);
+  if (hp === 0) return { state: { ...prev, hp, mode: 'dead', timer: 0, invuln: 0, special: null, stunBy: null }, hit: true, defeated: true };
   const next: BossState = { ...prev, hp, invuln: BOSS_TIMING.invuln };
   if (kind === 'stomp') {
     next.mode = 'recover';
     next.timer = BOSS_TIMING.recover;
+    next.special = null;
+    next.stunBy = null;
+  } else if (kind === 'rock') {
+    next.mode = 'stunned';
+    next.stunBy = 'rocks';
+    next.timer = BOSS_TIMING.stunned;
+    next.special = null;
   }
   return { state: next, hit: true, defeated: false };
 }

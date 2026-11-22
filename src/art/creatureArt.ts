@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PALETTE } from '../game/constants';
 import type { BossKind } from '../levels/types';
 import { BOSS_BY_WORLD } from '../systems/boss';
+import { BOSS_DRAWERS } from './bossArt';
 import { canvasTexture, circle, ellipse, fillStroke, OUT, polygon, roundRectPath, type Ctx } from './canvasArt';
 
 /** Corvo Umbral, Ouriço de Cristal e o chefão (um corpo base, recolorido por mundo). Arte original e provisória. */
@@ -10,8 +11,10 @@ export const CORVO_FRAME = { w: 52, h: 44 } as const;
 export const CORVO_BODY = { w: 30, h: 22, offsetX: 11, offsetY: 14 } as const;
 export const OURICO_FRAME = { w: 52, h: 44 } as const;
 export const OURICO_BODY = { w: 38, h: 26, offsetX: 7, offsetY: 16 } as const;
-export const BOSS_FRAME = { w: 132, h: 124 } as const;
-export const BOSS_BODY = { w: 84, h: 84, offsetX: 24, offsetY: 36 } as const;
+/** Moldura com folga de 24 px no topo (coroas, chifres, antenas); o corpo desce junto. */
+export const BOSS_TOP_PAD = 24;
+export const BOSS_FRAME = { w: 132, h: 124 + BOSS_TOP_PAD } as const;
+export const BOSS_BODY = { w: 84, h: 84, offsetX: 24, offsetY: 36 + BOSS_TOP_PAD } as const;
 
 function drawCorvo(ctx: Ctx, wingsUp: boolean): void {
   const wy = wingsUp ? -12 : 8;
@@ -90,6 +93,25 @@ const BOSS_COLORS: Record<BossKind, { body: string; head: string; belly: string;
 };
 
 function drawBoss(ctx: Ctx, pose: BossPose, kind: BossKind): void {
+  ctx.save();
+  ctx.translate(0, BOSS_TOP_PAD);
+  drawBossBody(ctx, pose, kind);
+  ctx.restore();
+}
+
+function drawBossBody(ctx: Ctx, pose: BossPose, kind: BossKind): void {
+  const own = BOSS_DRAWERS[kind];
+  if (own) {
+    ctx.save();
+    if (pose === 'windup') {
+      ctx.translate(66, 124);
+      ctx.scale(1.04, 0.95);
+      ctx.translate(-66, -124);
+    }
+    own(ctx, pose);
+    ctx.restore();
+    return;
+  }
   const c = BOSS_COLORS[kind];
   ctx.save();
   const sx = pose === 'windup' ? 1.04 : 1;
