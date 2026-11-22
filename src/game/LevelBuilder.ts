@@ -84,7 +84,7 @@ export function buildLevel(scene: Phaser.Scene, level: LevelData, grid: TileGrid
 
   const spikes = scene.physics.add.staticGroup();
   for (const s of level.spikes) {
-    const spike = spikes.create(center(s.x), (s.y + 1) * TILE - 23 * PX, 'spikes') as Phaser.Physics.Arcade.Sprite;
+    const spike = spikes.create(center(s.x), (s.y + 1) * TILE - 17 * PX + 1 * PX, 'spikes') as Phaser.Physics.Arcade.Sprite;
     spike.setDepth(DEPTH.items);
     const body = spike.body as Phaser.Physics.Arcade.StaticBody;
     body.setSize(TILE * 0.74, 20 * PX, false);
