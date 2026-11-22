@@ -16,11 +16,12 @@ export type StunSource = 'wall' | 'quake' | 'shot' | 'rain' | 'rocks';
  * Como cada chefão é vencido.
  * - stomp[fonte]: dano do pisão enquanto atordoado por essa fonte (ausente/0 = pisão não machuca; a fonte nem atordoa);
  * - stomp.cast: dano do pisão enquanto ele se prepara para atacar (interrompe o ataque);
+ * - stomp.open: dano do pisão em qualquer momento (cabeça segura e sempre vulnerável); vale também como reserva quando não há dano específico;
  * - fire: dano da bola de fogo (0 = imune);
  * - rocks: dano quando uma pedra da própria chuva cai nele (0 = imune).
  */
 export interface BossWeakness {
-  stomp: Partial<Record<StunSource | 'cast', number>>;
+  stomp: Partial<Record<StunSource | 'cast' | 'open', number>>;
   fire: number;
   rocks: number;
 }
@@ -42,8 +43,8 @@ export interface BossDef {
 export const BOSSES: Record<BossKind, BossDef> = {
   gronk: {
     id: 'gronk', name: 'Gronk', world: 1, hp: 6, speed: 1.0, specials: [],
-    weakness: { stomp: { wall: 2 }, fire: 1, rocks: 0 },
-    hint: 'Espere ele bater na parede e pise nele!',
+    weakness: { stomp: { open: 2, wall: 3 }, fire: 1, rocks: 0 },
+    hint: 'Pule na cabeça dele! Ou pegue a Flor de Fogo nos blocos ? e jogue fogo.',
   },
   kragor: {
     id: 'kragor', name: 'Kragor', world: 2, hp: 6, speed: 1.05, specials: ['rain'],
@@ -256,7 +257,7 @@ export interface DamageResult {
 
 export type DamageKind = 'stomp' | 'fire' | 'rock';
 
-const GRONK_WEAKNESS: BossWeakness = { stomp: { wall: 2 }, fire: 1, rocks: 0 };
+const GRONK_WEAKNESS: BossWeakness = { stomp: { open: 2, wall: 3 }, fire: 1, rocks: 0 };
 
 /**
  * Aplica um golpe segundo a fraqueza do chefão.
@@ -269,8 +270,9 @@ export function damageBoss(prev: BossState, kind: DamageKind, weakness: BossWeak
   if (prev.mode === 'dead' || prev.invuln > 0) return miss();
   let amount = 0;
   if (kind === 'stomp') {
-    if (prev.mode === 'stunned' && prev.stunBy) amount = weakness.stomp[prev.stunBy] ?? 0;
-    else if (prev.mode === 'cast') amount = weakness.stomp.cast ?? 0;
+    if (prev.mode === 'stunned' && prev.stunBy) amount = weakness.stomp[prev.stunBy] ?? weakness.stomp.open ?? 0;
+    else if (prev.mode === 'cast') amount = weakness.stomp.cast ?? weakness.stomp.open ?? 0;
+    else if (weakness.stomp.open) amount = weakness.stomp.open;
     else return miss();
     if (amount <= 0) return miss(true);
   } else if (kind === 'fire') {

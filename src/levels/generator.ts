@@ -447,9 +447,12 @@ export function generateBossArena(world: number): LevelData {
     rooms: [],
     blocks: [
       ...walls,
-      { kind: 'surprise', x: 8, y: 6, reward: 'grow' },
+      // Blocos de poder (o 1º dá a fruta se o jogador estiver pequeno, depois a flor), um coração e um reforço
+      // para quem perder o fogo no meio da luta.
+      { kind: 'surprise', x: 8, y: 6, reward: 'flor-de-fogo' },
       { kind: 'surprise', x: 10, y: 6, reward: 'flor-de-fogo' },
       { kind: 'surprise', x: 12, y: 6, reward: 'heart' },
+      { kind: 'surprise', x: 14, y: 6, reward: 'flor-de-fogo' },
     ],
     coins: [...line(5, 7, 5), ...line(16, 18, 5), ...line(9, 13, 8)],
     enemies: [],

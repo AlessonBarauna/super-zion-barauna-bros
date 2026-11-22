@@ -137,9 +137,9 @@ function drawBossBody(ctx: Ctx, pose: BossPose, kind: BossKind): void {
   // cabeça
   roundRectPath(ctx, 28, 8, 76, 60, 24);
   fillStroke(ctx, c.head, 3.4);
-  // chifres / espinhos
-  for (const x of [38, 66, 94]) {
-    polygon(ctx, [[x - 8, 14], [x, -2], [x + 8, 14]]);
+  // calombos redondos no alto da cabeça (nada pontudo: dá para pisar com segurança)
+  for (const x of [40, 66, 92]) {
+    ellipse(ctx, x, 12, 11, 8);
     fillStroke(ctx, c.horn, 2.6);
   }
   if (pose === 'stunned') {

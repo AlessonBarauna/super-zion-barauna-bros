@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Player } from '../entities/characters/Player';
 import { Boss } from '../entities/bosses/Boss';
-import { DEPTH, GAME_WIDTH, PALETTE, PX, TILE } from './constants';
+import { DEPTH, GAME_WIDTH, PALETTE, TILE } from './constants';
 import type { BossKind, BossSpec } from '../levels/types';
 import { nearestAlive } from '../systems/coop';
 import { isEnraged } from '../systems/boss';
@@ -36,12 +36,15 @@ export class BossFight {
   private readonly label: Phaser.GameObjects.Text;
   private shownHp = -1;
   private lastNote = -10;
+  private lastHp = -1;
+  private lastProgress = 0;
+  private hintActive = false;
   private lastMode = '';
   private readonly arena: Arena;
   private hazards: { data: Hazard; shape: Phaser.GameObjects.Shape; marker?: Phaser.GameObjects.Ellipse }[] = [];
 
   constructor(
-    scene: Phaser.Scene,
+    private readonly scene: Phaser.Scene,
     spec: BossSpec,
     solids: Phaser.Physics.Arcade.StaticGroup,
     players: Player[],
@@ -97,7 +100,18 @@ export class BossFight {
       .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(DEPTH.hud);
-    scene.tweens.add({ targets: hint, alpha: 0, delay: 5500, duration: 900, onComplete: () => hint.destroy() });
+    this.hintActive = true;
+    this.lastProgress = scene.time.now / 1000;
+    scene.tweens.add({
+      targets: hint,
+      alpha: 0,
+      delay: 7000,
+      duration: 900,
+      onComplete: () => {
+        hint.destroy();
+        this.hintActive = false;
+      },
+    });
   }
 
   /** Aviso rápido sobre o chefão (ex.: golpe inútil), no máximo a cada 1,2 s. */
@@ -120,6 +134,14 @@ export class BossFight {
     const target = players[nearestAlive(this.boss.x, players)];
     const action = this.boss.step(dt, target ? target.x - this.boss.x : 0);
     const mode = this.boss.ai.mode;
+    // Sem tirar vida do chefão por 20 s? A dica volta para lembrar como vencer.
+    const now = this.scene.time.now / 1000;
+    if (this.boss.ai.hp !== this.lastHp) {
+      this.lastHp = this.boss.ai.hp;
+      this.lastProgress = now;
+    } else if (!this.hintActive && !this.defeated && now - this.lastProgress > 20) {
+      this.showHint(this.boss.def.hint);
+    }
     if (mode === 'cast' && this.lastMode !== 'cast') this.hooks.onSfx('warn');
     this.lastMode = mode;
     if (action && !this.defeated) this.spawn(action.kind, target?.x ?? this.boss.x);
@@ -226,8 +248,9 @@ export class BossFight {
     if (boss.defeated || player.dead) return;
     const pb = player.arcadeBody;
     const bb = boss.arcadeBody;
-    const falling = pb.velocity.y > 40 * PX;
-    const fromAbove = pb.bottom - bb.top < bb.height * 0.4;
+    // Pisão generoso: descendo (mesmo devagar) e com os pés na metade de cima do chefão.
+    const falling = pb.velocity.y >= 0;
+    const fromAbove = pb.bottom - bb.top < bb.height * 0.55;
     if (falling && fromAbove) {
       const r = boss.hurt('stomp');
       if (r.immune) {
@@ -235,9 +258,10 @@ export class BossFight {
         this.hooks.onSfx('immune');
       }
       player.bounce();
+      player.vitality.grantInvulnerability(0.5);
       return;
     }
-    if (boss.ai.mode === 'stunned') return; // atordoado não machuca ao toque
+    if (boss.ai.mode === 'stunned' || boss.ai.mode === 'recover') return; // atordoado ou se recuperando de um golpe não machuca ao toque
     player.takeHit(boss.x);
   }
 
