@@ -441,9 +441,8 @@ export class GameScene extends Phaser.Scene {
       const reward = (tile.getData('reward') as string | undefined) ?? 'coin';
       if (reward === 'coin') this.popCoin(tile.x, tile.y - TILE);
       else {
-        // A flor de fogo só aparece para quem já é grande; se alguém está pequeno, o bloco entrega a fruta.
-        const anySmall = this.players.some((p) => !p.dead && !p.isBig);
-        const kind = reward === 'heart' ? 'heart' : reward === 'grow' || anySmall ? 'grow' : 'flor-de-fogo';
+        // Cada bloco entrega sempre o que promete: fruta cresce, flor dá o poder, coração cura.
+        const kind = reward === 'heart' ? 'heart' : reward === 'grow' ? 'grow' : 'flor-de-fogo';
         this.spawnItem(kind, tile.x, tile.y);
       }
     }
