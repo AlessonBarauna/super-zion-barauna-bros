@@ -65,7 +65,7 @@ function tileTexture(kind: CellKind, col: number, row: number, grid: TileGrid): 
     case 'pipe': {
       const top = grid.kindAt(col, row - 1) !== 'pipe' ? 'top' : 'body';
       const side = grid.kindAt(col - 1, row) === 'pipe' ? 'r' : 'l';
-      return `pipe-${top}-${side}`;
+      return `pipe${themeSuffix(grid.level.theme)}-${top}-${side}`;
     }
   }
 }

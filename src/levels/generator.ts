@@ -266,12 +266,13 @@ export function generateLevel(world: number, stage: number): LevelData {
       x = end + 6;
     } else if (kind === 'flyers') {
       // Terreno limpo, mas o céu está cheio de corvos em alturas diferentes.
-      const len = 14;
+      // O primeiro corvo fica a 6 blocos da entrada: o patrulhamento (±3) não cobre o pouso do trecho anterior.
+      const len = 17;
       ground.push({ from: start, to: start + len - 1 });
       flatSpans.push({ from: start, to: start + len - 1 });
       const count = 2 + (difficulty > 0.5 ? 1 : 0);
-      for (let e = 0; e < count; e++) enemies.push({ kind: 'corvo-umbral', x: start + 3 + e * 4, y: 4 + (e % 2) });
-      coins.push(...line(start + 5, start + 8, 8));
+      for (let e = 0; e < count; e++) enemies.push({ kind: 'corvo-umbral', x: start + 6 + e * 4, y: 4 + (e % 2) });
+      coins.push(...line(start + 3, start + 5, 8));
       x = start + len;
     } else if (kind === 'platforms') {
       const len = 12;
@@ -357,17 +358,30 @@ export function generateLevel(world: number, stage: number): LevelData {
     }
   }
 
+  // Zona de pouso: depois de um vão (ou ponte) nenhum inimigo de chão nos 5 primeiros blocos,
+  // senão o jogador (pequeno, 1 coração) cai direto em cima dele sem chance de reagir.
+  const sortedGround = [...ground].sort((a, b) => a.from - b.from);
+  const landings: number[] = [];
+  sortedGround.forEach((seg, i) => {
+    const prev = sortedGround[i - 1];
+    if (prev && seg.from > prev.to + 1) landings.push(seg.from);
+  });
+  const inLanding = (x: number): boolean => landings.some((l) => x >= l && x < l + 5);
+
   // Remove inimigos que ficaram sobre a mesma coluna de espinhos/blocos/checkpoints.
-  const cleanEnemies = enemies.filter(
-    (e) =>
-      e.kind === 'corvo-umbral' ||
-      (!spikes.some((s) => Math.abs(s.x - e.x) <= 1) &&
-        !blocks.some((b) => b.kind === 'stone' && Math.abs(b.x - e.x) <= 1) &&
-        !pipes.some((p) => e.x >= p.x - 1 && e.x <= p.x + 2) &&
-        !doors.some((d) => Math.abs(d.x - e.x) <= 2) &&
-        !checkpoints.some((c) => Math.abs(c.x - e.x) <= 1) &&
-        e.x < goalX - 3),
-  );
+  const cleanEnemies = enemies.filter((e) => {
+    // Corvo patrulha ±3 blocos: não pode sobrevoar o pouso de um vão/ponte.
+    if (e.kind === 'corvo-umbral') return !landings.some((l) => e.x >= l - 3 && e.x < l + 3);
+    if (inLanding(e.x)) return false;
+    return (
+      !spikes.some((s) => Math.abs(s.x - e.x) <= 1) &&
+      !blocks.some((b) => b.kind === 'stone' && Math.abs(b.x - e.x) <= 1) &&
+      !pipes.some((p) => e.x >= p.x - 1 && e.x <= p.x + 2) &&
+      !doors.some((d) => Math.abs(d.x - e.x) <= 2) &&
+      !checkpoints.some((c) => Math.abs(c.x - e.x) <= 1) &&
+      e.x < goalX - 3
+    );
+  });
 
   return {
     id: `${world}-${stage}`,

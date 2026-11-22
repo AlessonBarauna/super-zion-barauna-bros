@@ -259,17 +259,36 @@ function spikesTile(ctx: Ctx): void {
   fillStroke(ctx, '#6C7A8F', 2.2);
 }
 
-/** Cano verde (2 blocos de largura): cada metade é uma textura de 45x45. */
-function pipeTile(ctx: Ctx, top: boolean, side: 'l' | 'r'): void {
+interface PipePalette {
+  base: string;
+  hi: string;
+  mid: string;
+  lo: string;
+  decor?: 'rings' | 'rivets' | 'snow' | 'glow' | 'crystals';
+  accent?: string;
+}
+
+const PIPE_GREEN: PipePalette = { base: '#2F8F3A', hi: '#7BE27F', mid: '#43B649', lo: '#2A7F34' };
+
+/** Cada mundo tem seu cano: mesma forma (2 blocos), material e detalhes próprios. */
+export const PIPE_PALETTES: Record<string, PipePalette> = {
+  cavernas: { base: '#4A56B8', hi: '#9CB0FF', mid: '#6C7CE0', lo: '#3A438F', decor: 'crystals', accent: '#9CF2FF' },
+  deserto: { base: '#B8703A', hi: '#F0B27A', mid: '#D58F55', lo: '#8F5428', decor: 'rings', accent: '#6E3F1A' },
+  montanhas: { base: '#6FB4DC', hi: '#E4F7FF', mid: '#9AD2F0', lo: '#4F94BE', decor: 'snow', accent: '#FFFFFF' },
+  selva: { base: '#6B8E23', hi: '#C4E066', mid: '#93B93A', lo: '#4D6A16', decor: 'rings', accent: '#2F4A0E' },
+  engrenagens: { base: '#5F6672', hi: '#B9C0CB', mid: '#8A929E', lo: '#444A55', decor: 'rivets', accent: '#E07A2E' },
+  nuvens: { base: '#E58FC4', hi: '#FFE0F2', mid: '#F4B3DA', lo: '#C46AA0', decor: 'rings', accent: '#FFFFFF' },
+  abismo: { base: '#4B2A78', hi: '#9A6BD6', mid: '#6D41A6', lo: '#33195A', decor: 'glow', accent: '#FF5FD2' },
+};
+
+/** Cano (2 blocos de largura): cada metade é uma textura de 45x45. */
+function pipeTile(ctx: Ctx, top: boolean, side: 'l' | 'r', pal: PipePalette = PIPE_GREEN): void {
   const body = top ? 0 : 3;
-  const x0 = side === 'l' ? 0 : 0;
-  ctx.fillStyle = '#2F8F3A';
-  ctx.fillRect(x0 + body, 0, T - body * (side === 'l' ? 1 : 1), T);
+  ctx.fillStyle = pal.base;
+  ctx.fillRect(body, 0, T - body, T);
   const g = ctx.createLinearGradient(0, 0, T, 0);
-  const light = side === 'l' ? '#7BE27F' : '#43B649';
-  const dark = side === 'l' ? '#43B649' : '#2A7F34';
-  g.addColorStop(0, light);
-  g.addColorStop(1, dark);
+  g.addColorStop(0, side === 'l' ? pal.hi : pal.mid);
+  g.addColorStop(1, side === 'l' ? pal.mid : pal.lo);
   ctx.fillStyle = g;
   const left = side === 'l' ? (top ? 1.2 : 4.2) : 0;
   const right = side === 'r' ? (top ? 1.2 : 4.2) : 0;
@@ -283,6 +302,7 @@ function pipeTile(ctx: Ctx, top: boolean, side: 'l' | 'r'): void {
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.fillRect(side === 'l' ? 11 : 4, 0, 5, T);
   }
+  pipeDecor(ctx, top, side, pal);
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 2.6;
   ctx.beginPath();
@@ -294,6 +314,63 @@ function pipeTile(ctx: Ctx, top: boolean, side: 'l' | 'r'): void {
     ctx.lineTo(T - (top ? 1.2 : 4.2), T);
   }
   ctx.stroke();
+}
+
+/** Detalhes do material do cano (anéis, rebites, neve, brilho, cristais). */
+function pipeDecor(ctx: Ctx, top: boolean, side: 'l' | 'r', pal: PipePalette): void {
+  const acc = pal.accent ?? pal.lo;
+  const x0 = side === 'l' ? 4 : 0;
+  const x1 = side === 'l' ? T : T - 4;
+  switch (pal.decor) {
+    case 'rings':
+      if (!top) {
+        ctx.fillStyle = acc;
+        ctx.fillRect(x0, 20, x1 - x0, 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(x0, 24, x1 - x0, 2);
+      }
+      break;
+    case 'rivets':
+      for (const y of top ? [11] : [10, 34]) {
+        circle(ctx, side === 'l' ? 14 : T - 14, y, 3);
+        fillStroke(ctx, acc, 1.6);
+      }
+      if (!top) {
+        ctx.fillStyle = acc;
+        ctx.fillRect(x0, 21, x1 - x0, 3);
+      }
+      break;
+    case 'snow':
+      if (top) {
+        roundRectPath(ctx, side === 'l' ? 0.5 : -4, -2, T + (side === 'l' ? 0 : 4) - 1, 9, 4);
+        fillStroke(ctx, '#FFFFFF', 2);
+      }
+      break;
+    case 'glow':
+      ctx.strokeStyle = acc;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      if (top) {
+        ctx.moveTo(side === 'l' ? 3 : 0, 15);
+        ctx.lineTo(side === 'l' ? T : T - 3, 15);
+      } else {
+        ctx.moveTo(side === 'l' ? 20 : 12, 0);
+        ctx.lineTo(side === 'l' ? 20 : 12, T);
+      }
+      ctx.stroke();
+      break;
+    case 'crystals':
+      if (top) {
+        polygon(ctx, [[side === 'l' ? 22 : 8, 6], [side === 'l' ? 27 : 13, -4], [side === 'l' ? 32 : 18, 6]]);
+        fillStroke(ctx, acc, 1.8);
+      } else {
+        polygon(ctx, [[side === 'l' ? 14 : 22, 22], [side === 'l' ? 19 : 27, 12], [side === 'l' ? 24 : 32, 22]]);
+        fillStroke(ctx, acc, 1.6);
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 /** Porta de saída das salas secretas. */
@@ -644,7 +721,12 @@ export function createWorldTextures(scene: Phaser.Scene): void {
   canvasTexture(scene, 'spikes', T, 34, spikesTile);
   canvasTexture(scene, 'pit-fill', T, 135, pitFill);
   for (const top of [true, false]) {
-    for (const side of ['l', 'r'] as const) canvasTexture(scene, `pipe-${top ? 'top' : 'body'}-${side}`, T, T, (c) => pipeTile(c, top, side));
+    for (const side of ['l', 'r'] as const) {
+      canvasTexture(scene, `pipe-${top ? 'top' : 'body'}-${side}`, T, T, (c) => pipeTile(c, top, side));
+      for (const [theme, pal] of Object.entries(PIPE_PALETTES)) {
+        canvasTexture(scene, `pipe-${theme}-${top ? 'top' : 'body'}-${side}`, T, T, (c) => pipeTile(c, top, side, pal));
+      }
+    }
   }
   canvasTexture(scene, 'door-exit', 46, 86, exitDoor);
 
