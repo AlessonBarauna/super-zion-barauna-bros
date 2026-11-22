@@ -20,10 +20,13 @@ const BOSS_ACCENT: Record<BossKind, string> = {
   umbrax: '#B26BFF',
 };
 
+import type { SfxName } from '../systems/sfx';
+
 export interface BossHooks {
   onHit(): void;
   onWall(): void;
   onDefeated(): void;
+  onSfx(name: SfxName): void;
 }
 
 /** Costura entre a cena e o chefão: colisões, golpes, barra de vida. A lógica fica em systems/boss. */
@@ -33,6 +36,7 @@ export class BossFight {
   private readonly label: Phaser.GameObjects.Text;
   private shownHp = -1;
   private lastNote = -10;
+  private lastMode = '';
   private readonly arena: Arena;
   private hazards: { data: Hazard; shape: Phaser.GameObjects.Shape; marker?: Phaser.GameObjects.Ellipse }[] = [];
 
@@ -41,7 +45,7 @@ export class BossFight {
     spec: BossSpec,
     solids: Phaser.Physics.Arcade.StaticGroup,
     players: Player[],
-    hooks: BossHooks,
+    private readonly hooks: BossHooks,
     arenaTiles: { widthTiles: number; groundRow: number },
   ) {
     this.arena = { left: TILE, right: (arenaTiles.widthTiles - 1) * TILE, groundY: arenaTiles.groundRow * TILE };
@@ -115,6 +119,9 @@ export class BossFight {
   step(dt: number, players: Player[]): void {
     const target = players[nearestAlive(this.boss.x, players)];
     const action = this.boss.step(dt, target ? target.x - this.boss.x : 0);
+    const mode = this.boss.ai.mode;
+    if (mode === 'cast' && this.lastMode !== 'cast') this.hooks.onSfx('warn');
+    this.lastMode = mode;
     if (action && !this.defeated) this.spawn(action.kind, target?.x ?? this.boss.x);
     if (this.defeated) this.clearHazards();
     else this.stepHazards(dt, players);
@@ -132,7 +139,10 @@ export class BossFight {
           ? spawnRain(def, targetX, this.arena, rage, this.boss.x)
           : spawnQuake(def, this.boss.x, this.arena);
     for (const data of list) this.hazards.push(this.makeVisual(data));
-    if (kind === 'quake') this.boss.scene.cameras.main.shake(220, 0.006);
+    if (kind === 'quake') {
+      this.boss.scene.cameras.main.shake(220, 0.006);
+      this.hooks.onSfx('quake');
+    } else if (kind === 'shot') this.hooks.onSfx('orb');
   }
 
   private makeVisual(data: Hazard): { data: Hazard; shape: Phaser.GameObjects.Shape; marker?: Phaser.GameObjects.Ellipse } {
@@ -156,6 +166,7 @@ export class BossFight {
     for (const item of this.hazards) {
       const data = stepHazard(item.data, dt, this.arena);
       if (!data) {
+        if (item.data.kind === 'rock') this.hooks.onSfx('rock');
         item.shape.destroy();
         item.marker?.destroy();
         continue;
@@ -203,7 +214,10 @@ export class BossFight {
     if (this.defeated || !this.boss.active) return false;
     if (!Phaser.Geom.Intersects.RectangleToRectangle(box, this.boss.getBounds())) return false;
     const r = this.boss.hurt('fire');
-    if (r.immune) this.note('Imune ao fogo!');
+    if (r.immune) {
+      this.note('Imune ao fogo!');
+      this.hooks.onSfx('immune');
+    }
     return true;
   }
 
@@ -216,7 +230,10 @@ export class BossFight {
     const fromAbove = pb.bottom - bb.top < bb.height * 0.4;
     if (falling && fromAbove) {
       const r = boss.hurt('stomp');
-      if (r.immune) this.note('Pisão não machuca agora!');
+      if (r.immune) {
+        this.note('Pisão não machuca agora!');
+        this.hooks.onSfx('immune');
+      }
       player.bounce();
       return;
     }

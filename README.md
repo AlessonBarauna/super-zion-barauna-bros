@@ -131,3 +131,11 @@ Uma dica aparece no início de cada luta. Resumo (a fraqueza fica em `systems/bo
 
 Golpe inútil mostra um aviso sobre o chefão ("Imune ao fogo!", "Pisão não machuca agora!").
 Corpos: `src/art/bossArt.ts` (arte original e provisória). Testes: `tests/boss-specials.test.ts` e `tools/visual/scenarios_boss_weakness.py`.
+
+## Áudio novo
+Efeitos sintetizados (provisórios) para pulo duplo, crescer, entrar em cano/porta, aviso do chefão (dois toques graves antes de cada ataque), orbe, pedra, onda de choque, golpe inútil e chefão derrotado. Receitas em `src/systems/sfxData.ts`; teste: `tests/sfx.test.ts` e `tools/visual/scenarios_audio.py`.
+
+## Ferramentas de QA
+- `tools/visual/bot.py`: robô que joga uma fase (usa pulo duplo em vãos e espinhos). Use `BOT_LOG=1` para ver a posição a cada 0,5 s.
+- `tools/visual/jump_window.py`: mede a janela de decolagem para atravessar um trecho (espinhos) com pulo simples ou duplo, para Zion e Bara.
+- Regra de justiça do gerador: nenhum inimigo de chão nos 5 blocos depois de um vão/ponte e nenhum corvo sobrevoando o pouso (`tests/world-identity.test.ts`).
