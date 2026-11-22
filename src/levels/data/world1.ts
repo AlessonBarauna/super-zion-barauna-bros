@@ -146,6 +146,11 @@ export const LEVEL_1_1: LevelData = {
     { x: 50, y: 8 },
     { x: 51, y: 8 },
     { x: 96, y: 8 },
+    { x: 40, y: 8 },
+    { x: 41, y: 8 },
+    { x: 67, y: 8 },
+    { x: 68, y: 8 },
+    { x: 97, y: 8 },
   ],
   checkpoints: [
     { x: 57, y: 8 },

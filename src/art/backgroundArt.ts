@@ -20,6 +20,28 @@ export const OLIVEIRAS_LAYERS = [
   { key: 'bg-olive-trees', factor: 0.58, auto: 0 },
 ] as const;
 
+/** Camadas de fundo de cada mundo: tira o que destoa (casas e oliveiras no deserto, sol nas cavernas). */
+const LAYERS_BY_KEY = new Map<string, (typeof OLIVEIRAS_LAYERS)[number]>(OLIVEIRAS_LAYERS.map((l) => [l.key, l]));
+const LAYER_SET: Record<string, string[]> = {
+  oliveiras: OLIVEIRAS_LAYERS.map((l) => l.key),
+  cavernas: ['bg-sky', 'bg-mountains', 'bg-hills-far'],
+  deserto: ['bg-sky', 'bg-clouds', 'bg-mountains', 'bg-hills-far'],
+  montanhas: ['bg-sky', 'bg-clouds', 'bg-mountains', 'bg-hills-far'],
+  selva: ['bg-sky', 'bg-clouds', 'bg-hills-far', 'bg-olive-trees'],
+  engrenagens: ['bg-sky', 'bg-mountains', 'bg-hills-far'],
+  nuvens: ['bg-sky', 'bg-clouds', 'bg-clouds'],
+  abismo: ['bg-sky', 'bg-mountains', 'bg-hills-far'],
+};
+
+export function layersForTheme(theme: string): Array<{ key: string; factor: number; auto: number }> {
+  const keys = LAYER_SET[theme] ?? LAYER_SET.oliveiras!;
+  return keys.map((k, i) => {
+    const base = LAYERS_BY_KEY.get(k)!;
+    // A segunda camada de nuvens (mundo 7) anda em outra velocidade para dar profundidade.
+    return i > 0 && keys.indexOf(k) !== i ? { ...base, factor: base.factor * 2.2, auto: base.auto * 1.8 } : base;
+  });
+}
+
 /** Soma de senos com harmônicos inteiros: periódica em BG_W, logo repetível sem emenda. */
 function wave(x: number, terms: Array<[number, number, number]>): number {
   let y = 0;

@@ -24,48 +24,82 @@ const GRASS_LIGHT = '#6FD974';
 
 export const TILE_VARIANTS = 3;
 
-function dirtBase(ctx: Ctx, rnd: () => number): void {
-  ctx.fillStyle = DIRT;
+export interface GroundPalette {
+  dirt: string;
+  dirtDark: string;
+  dirtLight: string;
+  pebble: string;
+  pebbleLine: string;
+  top: string;
+  topDark: string;
+  topLight: string;
+}
+
+const MEADOW: GroundPalette = {
+  dirt: DIRT,
+  dirtDark: DIRT_DARK,
+  dirtLight: DIRT_LIGHT,
+  pebble: '#B9A98E',
+  pebbleLine: '#6B5A44',
+  top: GRASS,
+  topDark: GRASS_DARK,
+  topLight: GRASS_LIGHT,
+};
+
+/** Terreno de cada mundo (cor da terra e da camada de cima). */
+export const GROUND_PALETTES: Record<string, GroundPalette> = {
+  cavernas: { dirt: '#4C4A7C', dirtDark: '#383563', dirtLight: '#6663A0', pebble: '#8FA3D8', pebbleLine: '#2C2A52', top: '#5FB8D6', topDark: '#3A8CAB', topLight: '#9CE4F2' },
+  deserto: { dirt: '#C99A55', dirtDark: '#A97A3B', dirtLight: '#E0B873', pebble: '#EBD3A0', pebbleLine: '#8A6430', top: '#EBCB86', topDark: '#C9A25A', topLight: '#F8E3AE' },
+  montanhas: { dirt: '#76809A', dirtDark: '#5B657E', dirtLight: '#93A0BA', pebble: '#C9D6E8', pebbleLine: '#47516A', top: '#F4FAFF', topDark: '#AFC8E0', topLight: '#FFFFFF' },
+  selva: { dirt: '#5C3A22', dirtDark: '#432714', dirtLight: '#7A4E2E', pebble: '#8FA06A', pebbleLine: '#2F2412', top: '#1F9D45', topDark: '#0F6E2E', topLight: '#4CCB6A' },
+  engrenagens: { dirt: '#62626E', dirtDark: '#4A4A55', dirtLight: '#7C7C8A', pebble: '#B89060', pebbleLine: '#33333C', top: '#B8693A', topDark: '#85441F', topLight: '#E09560' },
+  nuvens: { dirt: '#E4D8F7', dirtDark: '#C6B6E6', dirtLight: '#F6F0FF', pebble: '#FFFFFF', pebbleLine: '#9C8CC4', top: '#FFD3EE', topDark: '#E8A2CE', topLight: '#FFF0FA' },
+  abismo: { dirt: '#2E2244', dirtDark: '#1E1530', dirtLight: '#45346A', pebble: '#7A5AB0', pebbleLine: '#150E24', top: '#8A52C8', topDark: '#5A2E92', topLight: '#B58AF0' },
+};
+
+
+function dirtBase(ctx: Ctx, rnd: () => number, pal: GroundPalette = MEADOW): void {
+  ctx.fillStyle = pal.dirt;
   ctx.fillRect(0, 0, T, T);
   for (let i = 0; i < 9; i++) {
     ellipse(ctx, rnd() * T, rnd() * T, 2 + rnd() * 3, 1.4 + rnd() * 2, rnd() * 3);
-    ctx.fillStyle = i % 2 ? DIRT_DARK : DIRT_LIGHT;
+    ctx.fillStyle = i % 2 ? pal.dirtDark : pal.dirtLight;
     ctx.fill();
   }
   // pedrinhas
   for (let i = 0; i < 2; i++) {
     ellipse(ctx, 6 + rnd() * 33, 18 + rnd() * 22, 3.4, 2.6, rnd());
-    fillStroke(ctx, '#B9A98E', 1.4, '#6B5A44');
+    fillStroke(ctx, pal.pebble, 1.4, pal.pebbleLine);
   }
 }
 
-function grassTile(ctx: Ctx, variant: number): void {
+function grassTile(ctx: Ctx, variant: number, pal: GroundPalette = MEADOW): void {
   const rnd = seeded(101 + variant * 17);
-  dirtBase(ctx, rnd);
+  dirtBase(ctx, rnd, pal);
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(T, 0);
   ctx.lineTo(T, 11);
   for (let x = T; x > 0; x -= 9) ctx.quadraticCurveTo(x - 4.5, 18 + rnd() * 3.5, x - 9, 11);
   ctx.closePath();
-  ctx.fillStyle = GRASS;
+  ctx.fillStyle = pal.top;
   ctx.fill();
   ctx.save();
   ctx.clip();
-  ctx.fillStyle = GRASS_LIGHT;
+  ctx.fillStyle = pal.topLight;
   ctx.fillRect(0, 0, T, 4);
   ctx.restore();
   // contorno inferior do gramado
   ctx.beginPath();
   ctx.moveTo(T, 11);
   for (let x = T; x > 0; x -= 9) ctx.quadraticCurveTo(x - 4.5, 18 + rnd() * 3.5, x - 9, 11);
-  ctx.strokeStyle = GRASS_DARK;
+  ctx.strokeStyle = pal.topDark;
   ctx.lineWidth = 2.4;
   ctx.stroke();
 }
 
-function dirtTile(ctx: Ctx, variant: number): void {
-  dirtBase(ctx, seeded(401 + variant * 29));
+function dirtTile(ctx: Ctx, variant: number, pal: GroundPalette = MEADOW): void {
+  dirtBase(ctx, seeded(401 + variant * 29), pal);
 }
 
 function blockFrame(ctx: Ctx, fill: string, light: string, dark: string): void {
@@ -595,6 +629,10 @@ export function createWorldTextures(scene: Phaser.Scene): void {
   for (let v = 0; v < TILE_VARIANTS; v++) {
     canvasTexture(scene, `tile-grass-${v}`, T, T, (c) => grassTile(c, v));
     canvasTexture(scene, `tile-dirt-${v}`, T, T, (c) => dirtTile(c, v));
+    for (const [theme, pal] of Object.entries(GROUND_PALETTES)) {
+      canvasTexture(scene, `tile-grass-${theme}-${v}`, T, T, (c) => grassTile(c, v, pal));
+      canvasTexture(scene, `tile-dirt-${theme}-${v}`, T, T, (c) => dirtTile(c, v, pal));
+    }
   }
   canvasTexture(scene, 'tile-brick', T, T, brickTile);
   canvasTexture(scene, 'tile-surprise', T, T, surpriseTile);

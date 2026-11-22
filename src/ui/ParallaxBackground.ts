@@ -26,19 +26,33 @@ export class ParallaxBackground {
   }
 
   /**
-   * Variação provisória de paleta por mundo: uma camada multiplicadora sobre o fundo
-   * (setTint não funciona no renderizador Canvas; o blend MULTIPLY funciona nos dois).
+   * Variação de paleta por mundo: cada camada ganha uma cópia da textura multiplicada pela cor
+   * (setTint não funciona no renderizador Canvas; assim o resultado é igual nos dois).
    */
   setTint(color: number): void {
     if (color === 0xffffff) return;
-    const scene = this.sprites[0]?.scene;
-    if (!scene) return;
-    scene.add
-      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, color)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH.background + this.layers.length)
-      .setBlendMode(Phaser.BlendModes.MULTIPLY);
+    const css = `#${color.toString(16).padStart(6, '0')}`;
+    this.layers.forEach((layer, i) => {
+      const sprite = this.sprites[i];
+      if (!sprite) return;
+      const scene = sprite.scene;
+      const key = `${layer.key}-t${color.toString(16)}`;
+      if (!scene.textures.exists(key)) {
+        const src = scene.textures.get(layer.key).getSourceImage() as HTMLCanvasElement | HTMLImageElement;
+        const tex = scene.textures.createCanvas(key, src.width, src.height);
+        const ctx = tex?.getContext();
+        if (!tex || !ctx) return;
+        ctx.drawImage(src, 0, 0);
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = css;
+        ctx.fillRect(0, 0, src.width, src.height);
+        // multiply pinta também as partes transparentes: devolve o recorte original.
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(src, 0, 0);
+        tex.refresh();
+      }
+      sprite.setTexture(key);
+    });
   }
 
   update(scrollX: number, timeMs: number): void {

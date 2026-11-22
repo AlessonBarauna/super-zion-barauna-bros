@@ -113,7 +113,11 @@ with sync_playwright() as pw:
     xs1 = pbody(pg)['x']; st = state(pg)
     pg.screenshot(path=f'{SHOTS}/wd_bridge_mid.png')
     check('a ponte transporta o jogador sobre o abismo (sem cair)', xs1 - xs0 > 200 and not st['dead'] and st['y'] < 540, f"x {round(xs0)}->{round(xs1)} morto={st['dead']}")
-    pg.keyboard.down('d'); pg.wait_for_timeout(1500); pg.keyboard.up('d'); pg.wait_for_timeout(500)
+    pg.keyboard.down('d')
+    for _ in range(40):  # anda até passar da borda (há espinhos mais à frente, em 96-97)
+        pg.wait_for_timeout(100)
+        if state(pg)['x'] > 89 * T + 60: break
+    pg.keyboard.up('d'); pg.wait_for_timeout(900)
     st = state(pg)
     check('do outro lado, o jogador desembarca no terreno e segue vivo', st['x'] > 89 * T + 20 and not st['dead'] and st['onGround'], f"x={st['x']} noChão={st['onGround']}")
 

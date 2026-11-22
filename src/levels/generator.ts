@@ -52,7 +52,39 @@ const line = (x0: number, x1: number, y: number): TilePoint[] => {
   return out;
 };
 
-type ChunkKind = 'flat' | 'gap' | 'platforms' | 'bridge' | 'spikes' | 'stairs' | 'pipes' | 'warp-pipe' | 'warp-door';
+type ChunkKind =
+  | 'flat'
+  | 'gap'
+  | 'platforms'
+  | 'bridge'
+  | 'spikes'
+  | 'stairs'
+  | 'pipes'
+  | 'warp-pipe'
+  | 'warp-door'
+  | 'spike-pit'
+  | 'spike-field'
+  | 'gauntlet'
+  | 'double-gap'
+  | 'pyramid'
+  | 'bridge-chain'
+  | 'flyers';
+
+/**
+ * Personalidade de cada mundo: quantos trechos de cada tipo entram no sorteio.
+ * Assim os mundos se jogam diferente (não só mudam de cor): cavernas têm espinhos e voadores,
+ * o deserto tem vãos largos, as engrenagens têm pontes encadeadas, o abismo mistura tudo.
+ */
+const WORLD_MIX: Record<number, Partial<Record<ChunkKind, number>>> = {
+  1: { flat: 2, gap: 2, platforms: 3, spikes: 1, stairs: 2, pipes: 2 },
+  2: { flat: 1, gap: 1, platforms: 2, spikes: 2, stairs: 1, pipes: 1, 'spike-pit': 3, flyers: 2, gauntlet: 1 },
+  3: { flat: 1, gap: 3, platforms: 1, bridge: 3, 'double-gap': 3, pyramid: 1, spikes: 1 },
+  4: { flat: 1, stairs: 2, pyramid: 3, gauntlet: 2, platforms: 2, 'spike-pit': 1, gap: 1, flyers: 1 },
+  5: { flat: 1, 'spike-field': 3, gauntlet: 2, flyers: 2, platforms: 2, gap: 1, pipes: 1, 'spike-pit': 1 },
+  6: { flat: 1, 'bridge-chain': 3, 'double-gap': 2, bridge: 2, 'spike-field': 1, gauntlet: 1, pyramid: 1 },
+  7: { flat: 1, 'double-gap': 3, 'bridge-chain': 2, flyers: 3, platforms: 2, gap: 2 },
+  8: { gauntlet: 3, 'spike-field': 2, 'spike-pit': 2, 'double-gap': 2, 'bridge-chain': 2, flyers: 2, pyramid: 1, platforms: 1 },
+};
 
 /** Fase gerada: etapa 1..3 (a 4 é a arena do chefão). */
 export function generateLevel(world: number, stage: number): LevelData {
@@ -86,9 +118,14 @@ export function generateLevel(world: number, stage: number): LevelData {
   x = startEnd + 1;
   coins.push(...line(5, 7, 8));
 
-  const chunkCount = 9 + stage * 2 + Math.round(difficulty * 4);
-  const kinds: ChunkKind[] = ['flat', 'gap', 'platforms', 'spikes', 'stairs', 'pipes'];
-  if (world >= 2 || stage >= 2) kinds.push('bridge');
+  const chunkCount = 8 + stage * 2 + Math.round(difficulty * 5);
+  const kinds: ChunkKind[] = [];
+  for (const [k, w] of Object.entries(WORLD_MIX[world] ?? WORLD_MIX[1]!) as Array<[ChunkKind, number]>) {
+    for (let i = 0; i < w; i++) kinds.push(k);
+  }
+  // Fases 2 e 3 de cada mundo trazem ainda mais perigo.
+  if (stage >= 2) kinds.push('gauntlet', 'spike-pit');
+  if (stage >= 3 || world >= 2) kinds.push('bridge');
 
   let lastKind: ChunkKind = 'flat';
   for (let n = 0; n < chunkCount; n++) {
@@ -96,7 +133,7 @@ export function generateLevel(world: number, stage: number): LevelData {
     if (n === 2 || n === 5) lastKind = 'flat';
     // Evita repetir trechos perigosos em sequência e sempre intercala terreno firme.
     if (kind !== 'flat' && kind === lastKind) kind = 'flat';
-    if (lastKind === 'gap' || lastKind === 'bridge') kind = 'flat';
+    if (lastKind === 'gap' || lastKind === 'bridge' || lastKind === 'double-gap' || lastKind === 'bridge-chain') kind = 'flat';
     lastKind = kind;
     const start = x;
 
@@ -152,6 +189,89 @@ export function generateLevel(world: number, stage: number): LevelData {
       flatSpans.push({ from: start, to: start + len - 1 });
       doors.push({ x: start + 6, to: { x: 0, y: 8 } });
       warpSlots.push({ kind: 'porta', doorIndex: doors.length - 1, exitX: start + 9 });
+      x = start + len;
+    } else if (kind === 'spike-pit') {
+      // Faixa larga de espinhos: exige pulo bem calculado (ou pulo duplo).
+      const len = 14;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      const width = 3 + (difficulty > 0.55 ? 1 : 0);
+      const sx = start + 5;
+      for (let i = 0; i < width; i++) spikes.push({ x: sx + i, y: 8 });
+      coins.push(...line(sx - 1, sx + width, 4).map((c, i, a) => ({ x: c.x, y: i === 0 || i === a.length - 1 ? 6 : 4 })));
+      if (rand() < 0.5) enemies.push({ kind: 'cogumelo-sombrio', x: sx + width + 3, y: 8 });
+      x = start + len;
+    } else if (kind === 'spike-field') {
+      // Campo de espinhos largo demais para pular: só se passa pelas plataformas flutuantes.
+      const len = 15;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (let i = 3; i <= 10; i++) spikes.push({ x: start + i, y: 8 });
+      platforms.push({ x: start + 4, y: 7, w: 2 }, { x: start + 8, y: 7, w: 2 });
+      coins.push(...line(start + 4, start + 5, 5), ...line(start + 8, start + 9, 5));
+      x = start + len;
+    } else if (kind === 'gauntlet') {
+      // Corredor de inimigos com tijolos no alto (presente de ajuda no meio).
+      const len = 19;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      const count = 3 + Math.floor(difficulty * 3);
+      const kindsHere: EnemySpec['kind'][] = world >= 2 ? ['cogumelo-sombrio', 'ourico-cristal'] : ['cogumelo-sombrio'];
+      for (let e = 0; e < count; e++) enemies.push({ kind: pick(kindsHere), x: start + 4 + e * 3, y: 8 });
+      blocks.push({ kind: 'brick', x: start + 7, y: 5 }, { kind: 'surprise', x: start + 8, y: 5, reward: rand() < 0.5 ? 'flor-de-fogo' : 'heart' }, { kind: 'brick', x: start + 9, y: 5 });
+      coins.push(...line(start + 12, start + 15, 6));
+      x = start + len;
+    } else if (kind === 'double-gap') {
+      // Dois vãos seguidos separados por uma ilhota pequena.
+      const g1 = 2 + Math.floor(rand() * 2);
+      const g2 = 2 + Math.floor(rand() * 2);
+      const island = 2 + Math.floor(rand() * 2);
+      ground.push({ from: start, to: start + 6 });
+      flatSpans.push({ from: start, to: start + 6 });
+      const i0 = start + 7 + g1;
+      ground.push({ from: i0, to: i0 + island - 1 });
+      const e0 = i0 + island + g2;
+      ground.push({ from: e0, to: e0 + 6 });
+      flatSpans.push({ from: e0, to: e0 + 6 });
+      coins.push({ x: start + 7, y: 6 }, { x: start + 8, y: 5 }, { x: i0, y: 6 }, { x: i0 + island, y: 5 }, { x: e0 - 1, y: 6 });
+      x = e0 + 7;
+    } else if (kind === 'pyramid') {
+      // Escada que sobe e desce, com um inimigo esperando do outro lado.
+      const len = 15;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      const heights = [1, 2, 3, 2, 1];
+      heights.forEach((h, i) => {
+        for (let k = 1; k <= h; k++) blocks.push({ kind: 'stone', x: start + 4 + i, y: GROUND_ROW - k });
+      });
+      coins.push({ x: start + 6, y: 4 }, { x: start + 7, y: 6 });
+      enemies.push({ kind: world >= 2 ? 'ourico-cristal' : 'cogumelo-sombrio', x: start + 11, y: 8 });
+      x = start + len;
+    } else if (kind === 'bridge-chain') {
+      // Duas pontes móveis seguidas, cada uma com ritmo próprio (mais rápidas nos mundos finais).
+      const period = Math.max(5, 7.4 - difficulty * 2.4);
+      const gap = 9;
+      ground.push({ from: start, to: start + 6 });
+      flatSpans.push({ from: start, to: start + 6 });
+      let prevTo = start + 6;
+      movingPlatforms.push({ x: prevTo + 1, y: GROUND_ROW, w: 3, axis: 'x', range: gap - 3, period });
+      const mid = prevTo + 1 + gap;
+      ground.push({ from: mid, to: mid + 2 });
+      prevTo = mid + 2;
+      movingPlatforms.push({ x: prevTo + 1, y: GROUND_ROW, w: 3, axis: 'x', range: gap - 3, period: period + 0.8, phase: 0.5 });
+      const end = prevTo + 1 + gap;
+      ground.push({ from: end, to: end + 5 });
+      flatSpans.push({ from: end, to: end + 5 });
+      coins.push(...line(start + 9, start + 12, 7), ...line(mid + 5, mid + 8, 7));
+      x = end + 6;
+    } else if (kind === 'flyers') {
+      // Terreno limpo, mas o céu está cheio de corvos em alturas diferentes.
+      const len = 14;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + len - 1 });
+      const count = 2 + (difficulty > 0.5 ? 1 : 0);
+      for (let e = 0; e < count; e++) enemies.push({ kind: 'corvo-umbral', x: start + 3 + e * 4, y: 4 + (e % 2) });
+      coins.push(...line(start + 5, start + 8, 8));
       x = start + len;
     } else if (kind === 'platforms') {
       const len = 12;

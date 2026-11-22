@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { THEME_DECOR, type ThemeDecor } from '../art/themeArt';
 import { TILE_VARIANTS } from '../art/worldArt';
 import { seeded } from '../art/canvasArt';
 import { MovingPlatform } from '../entities/objects/MovingPlatform';
@@ -13,6 +14,9 @@ export interface CheckpointObject {
   bottom: number;
   active: boolean;
 }
+
+/** Sufixo da textura de terreno do mundo (o mundo 1 usa as texturas originais). */
+const themeSuffix = (theme: string): string => (theme === 'oliveiras' ? '' : `-${theme}`);
 
 /** Ponto onde ↓ leva a outro lugar (cano ou porta). */
 export interface WarpPoint {
@@ -49,7 +53,7 @@ function tileTexture(kind: CellKind, col: number, row: number, grid: TileGrid): 
     case 'ground':
       // Nas salas secretas o chão é de terra, sem grama.
       if (grid.level.rooms.some((r) => col >= r.x && col < r.x + r.w)) return `tile-dirt-${variant}`;
-      return grid.isSolid(col, row - 1) ? `tile-dirt-${variant}` : `tile-grass-${variant}`;
+      return grid.isSolid(col, row - 1) ? `tile-dirt${themeSuffix(grid.level.theme)}-${variant}` : `tile-grass${themeSuffix(grid.level.theme)}-${variant}`;
     case 'platform':
       return 'tile-platform';
     case 'brick':
@@ -179,6 +183,11 @@ function buildPitFill(scene: Phaser.Scene, level: LevelData): void {
 
 /** Elementos decorativos determinísticos: oliveiras, casas, arbustos e flores. */
 function buildDecor(scene: Phaser.Scene, level: LevelData): void {
+  const themed = THEME_DECOR[level.theme];
+  if (themed) {
+    buildThemedDecor(scene, level, themed);
+    return;
+  }
   const rnd = seeded(2026);
   const groundTop = level.groundRow * TILE;
   const houseCols = new Set([6, 20, 30, 94, 118, ...level.doors.filter((d) => !d.exit).map((d) => d.x)]);
@@ -280,7 +289,8 @@ function buildWarps(scene: Phaser.Scene, level: LevelData): WarpPoint[] {
     });
   }
   for (const door of level.doors) {
-    if (door.exit) scene.add.image(center(door.x), groundTop + 2 * PX, 'door-exit').setOrigin(0.5, 1).setDepth(DEPTH.decorBack);
+    // Fora do mundo 1 não há casas: a porta é uma porta de pedra avulsa.
+    if (door.exit || THEME_DECOR[level.theme]) scene.add.image(center(door.x), groundTop + 2 * PX, 'door-exit').setOrigin(0.5, 1).setDepth(DEPTH.decorBack);
     warps.push({
       kind: 'porta',
       x: center(door.x) + 2 * PX,
@@ -291,4 +301,39 @@ function buildWarps(scene: Phaser.Scene, level: LevelData): WarpPoint[] {
     });
   }
   return warps;
+}
+
+/** Cenário dos mundos 2 a 8: peças próprias do tema no lugar de árvores, casas e flores. */
+function buildThemedDecor(scene: Phaser.Scene, level: LevelData, decor: ThemeDecor): void {
+  const rnd = seeded(level.world * 97 + 11);
+  const groundTop = level.groundRow * TILE;
+  const mainWidth = level.mainWidthTiles ?? level.widthTiles;
+  const busy = new Set<number>();
+  for (const s of level.spikes) busy.add(s.x);
+  for (const p of level.pipes) busy.add(p.x).add(p.x + 1);
+  for (const d of level.doors) busy.add(d.x);
+  let nextBig = 0;
+  for (const seg of level.ground) {
+    if (seg.from >= mainWidth) continue;
+    for (let col = seg.from + 1; col <= seg.to - 1; col++) {
+      if (busy.has(col)) continue;
+      const x = center(col) + (rnd() - 0.5) * TILE * 0.5;
+      if (col >= nextBig && rnd() < 0.2) {
+        const key = decor.big[Math.floor(rnd() * decor.big.length)]!;
+        scene.add
+          .image(x, groundTop + 6 * PX, key)
+          .setOrigin(0.5, 1)
+          .setDepth(DEPTH.decorBack)
+          .setScale(decor.bigScale * (0.8 + rnd() * 0.4));
+        nextBig = col + 5;
+      } else if (rnd() < 0.2) {
+        const key = decor.small[Math.floor(rnd() * decor.small.length)]!;
+        scene.add
+          .image(x, groundTop + 3 * PX, key)
+          .setOrigin(0.5, 1)
+          .setDepth(DEPTH.items - 1)
+          .setScale(0.7 + rnd() * 0.35);
+      }
+    }
+  }
 }
