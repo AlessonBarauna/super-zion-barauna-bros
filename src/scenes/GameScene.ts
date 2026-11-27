@@ -2,7 +2,8 @@ import { captureCarry, carryFor, type CarryEntry } from '../systems/carry';
 import { nextPowerDrop } from '../systems/powerDrop';
 import Phaser from 'phaser';
 import { layersForTheme } from '../art/backgroundArt';
-import { CogumeloSombrio, OURICO_CONFIG } from '../entities/enemies/CogumeloSombrio';
+import { BESOURO_CONFIG, CogumeloSombrio, OURICO_CONFIG, TATU_CONFIG } from '../entities/enemies/CogumeloSombrio';
+import { MorcegoCristal } from '../entities/enemies/MorcegoCristal';
 import { CorvoUmbral } from '../entities/enemies/CorvoUmbral';
 import type { Enemy } from '../entities/enemies/Enemy';
 import { BossFight } from '../game/BossFight';
@@ -15,7 +16,7 @@ import { saveManager } from '../game/saveStore';
 import { FIRST_LEVEL_ID, LEVELS, nextLevelId } from '../levels';
 import { computeStars } from '../systems/worldMap';
 import { isBreakable, TileGrid } from '../levels/TileGrid';
-import type { LevelData } from '../levels/types';
+import { FLYING_ENEMIES, type LevelData } from '../levels/types';
 import { GoalTracker, cameraFocusX, charactersFor, clampToView, nearestAlive, resolveDeath, type GameMode } from '../systems/coop';
 import { CombinedControls, GamepadControls, KeyboardControls, INPUT_PROFILES } from '../systems/input';
 import { MusicPlayer } from '../systems/music';
@@ -212,9 +213,12 @@ export class GameScene extends Phaser.Scene {
       let enemy: Enemy;
       if (spec.kind === 'corvo-umbral') enemy = new CorvoUmbral(this, cx, (spec.y + 0.5) * TILE);
       else if (spec.kind === 'ourico-cristal') enemy = new CogumeloSombrio(this, cx, (spec.y + 1) * TILE, OURICO_CONFIG);
+      else if (spec.kind === 'morcego-cristal') enemy = new MorcegoCristal(this, cx, (spec.y + 0.5) * TILE, spec.x);
+      else if (spec.kind === 'besouro-saltador') enemy = new CogumeloSombrio(this, cx, (spec.y + 1) * TILE, BESOURO_CONFIG);
+      else if (spec.kind === 'tatu-couracado') enemy = new CogumeloSombrio(this, cx, (spec.y + 1) * TILE, TATU_CONFIG);
       else enemy = new CogumeloSombrio(this, cx, (spec.y + 1) * TILE);
       this.enemies.push(enemy);
-      if (spec.kind !== 'corvo-umbral') this.physics.add.collider(enemy as unknown as Phaser.Physics.Arcade.Sprite, this.built.solids);
+      if (!FLYING_ENEMIES.includes(spec.kind)) this.physics.add.collider(enemy as unknown as Phaser.Physics.Arcade.Sprite, this.built.solids);
       for (const player of this.players) this.physics.add.overlap(player, enemy as unknown as Phaser.Physics.Arcade.Sprite, () => this.onEnemyTouch(player, enemy));
     }
 

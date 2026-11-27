@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { OURICO_BODY, OURICO_FRAME } from '../../art/creatureArt';
 import { COGUMELO_BODY, COGUMELO_FRAME } from '../../art/enemyArt';
+import { BESOURO_BODY, BESOURO_FRAME, TATU_BODY, TATU_FRAME } from '../../art/newCreatureArt';
 import { DEPTH, PX, TILE } from '../../game/constants';
 import type { TileGrid } from '../../levels/TileGrid';
 import type { EnemyKind } from '../../levels/types';
@@ -18,6 +19,12 @@ export interface WalkerConfig {
   stompable: boolean;
   /** Persegue o jogador ao vê-lo? */
   chases: boolean;
+  /** Multiplicador de velocidade (patrulha e perseguição). */
+  speedMul?: number;
+  /** Pula de tempos em tempos (a cada `every` s, com impulso `vy`). */
+  hop?: { every: number; vy: number };
+  /** Textura ao ser esmagado (só para quem pode ser pisado). */
+  squashTexture?: string;
 }
 
 const COGUMELO_CONFIG: WalkerConfig = {
@@ -28,6 +35,7 @@ const COGUMELO_CONFIG: WalkerConfig = {
   body: COGUMELO_BODY,
   stompable: true,
   chases: true,
+  squashTexture: 'cogumelo-squash',
 };
 
 export const OURICO_CONFIG: WalkerConfig = {
@@ -40,12 +48,37 @@ export const OURICO_CONFIG: WalkerConfig = {
   chases: false,
 };
 
+export const BESOURO_CONFIG: WalkerConfig = {
+  kind: 'besouro-saltador',
+  texture: 'besouro-0',
+  anim: 'besouro-walk',
+  frame: BESOURO_FRAME,
+  body: BESOURO_BODY,
+  stompable: true,
+  chases: false,
+  speedMul: 1.25,
+  hop: { every: 1.5, vy: 560 },
+  squashTexture: 'besouro-squash',
+};
+
+export const TATU_CONFIG: WalkerConfig = {
+  kind: 'tatu-couracado',
+  texture: 'tatu-0',
+  anim: 'tatu-walk',
+  frame: TATU_FRAME,
+  body: TATU_BODY,
+  stompable: false,
+  chases: true,
+  speedMul: 1.35,
+};
+
 export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
   dead = false;
   readonly kind: EnemyKind;
   readonly stompable: boolean;
   private readonly config: WalkerConfig;
   private ai: WalkerState = { dir: -1, mode: 'patrol' };
+  private hopTimer = 0.6;
 
   constructor(scene: Phaser.Scene, x: number, bottomY: number, config: WalkerConfig = COGUMELO_CONFIG) {
     super(scene, x, 0, config.texture);
@@ -97,7 +130,15 @@ export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
       playerAlive: playerAlive && this.config.chases,
     });
     this.ai = result.state;
-    body.setVelocityX(this.ai.dir * result.speed);
+    body.setVelocityX(this.ai.dir * result.speed * (this.config.speedMul ?? 1));
+    const hop = this.config.hop;
+    if (hop) {
+      this.hopTimer -= this.scene.game.loop.delta / 1000;
+      if (this.hopTimer <= 0 && body.blocked.down) {
+        body.setVelocityY(-hop.vy * PX);
+        this.hopTimer = hop.every * (0.8 + Math.random() * 0.4);
+      }
+    }
     this.setFlipX(this.ai.dir === 1);
     this.anims.timeScale = this.ai.mode === 'chase' ? 1.7 : 1;
     return true;
@@ -129,7 +170,7 @@ export class CogumeloSombrio extends Phaser.Physics.Arcade.Sprite {
     body.setVelocity(0, 0);
     body.enable = false;
     this.anims.stop();
-    this.setTexture('cogumelo-squash');
+    this.setTexture(this.config.squashTexture ?? 'cogumelo-squash');
     this.scene.tweens.add({
       targets: this,
       alpha: 0,

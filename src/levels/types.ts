@@ -66,10 +66,10 @@ export interface RoomSpec {
   kind: 'caverna' | 'casa';
 }
 
-export type EnemyKind = 'cogumelo-sombrio' | 'corvo-umbral' | 'ourico-cristal';
+export type EnemyKind = 'cogumelo-sombrio' | 'corvo-umbral' | 'ourico-cristal' | 'besouro-saltador' | 'tatu-couracado' | 'morcego-cristal';
 
 /** Inimigos que voam: não precisam de chão embaixo. */
-export const FLYING_ENEMIES: readonly EnemyKind[] = ['corvo-umbral'];
+export const FLYING_ENEMIES: readonly EnemyKind[] = ['corvo-umbral', 'morcego-cristal'];
 
 export type BossKind = 'gronk' | 'kragor' | 'sakhur' | 'frostak' | 'vyrak' | 'mechazord' | 'auron' | 'umbrax';
 
