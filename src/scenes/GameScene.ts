@@ -1,4 +1,5 @@
 import { captureCarry, carryFor, type CarryEntry } from '../systems/carry';
+import { PowerFx } from '../game/PowerFx';
 import { nextPowerDrop } from '../systems/powerDrop';
 import Phaser from 'phaser';
 import { layersForTheme } from '../art/backgroundArt';
@@ -74,6 +75,8 @@ export class GameScene extends Phaser.Scene {
   private dustEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparkEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private fireballs!: Phaser.Physics.Arcade.Group;
+  private emberEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private powerFx: PowerFx[] = [];
   private items!: Phaser.Physics.Arcade.Group;
   private camTarget!: Phaser.GameObjects.Zone;
 
@@ -124,6 +127,7 @@ export class GameScene extends Phaser.Scene {
     this.bossFight = undefined;
     this.goalOpen = true;
     this.players = [];
+    this.powerFx = [];
     this.lastSafe = new Map();
     this.goal = new GoalTracker();
     this.lookAhead = 0;
@@ -151,6 +155,18 @@ export class GameScene extends Phaser.Scene {
         scale: { start: 0.9, end: 0 },
         alpha: { start: 0.8, end: 0 },
         gravityY: 260,
+        emitting: false,
+      })
+      .setDepth(DEPTH.fx);
+    this.emberEmitter = this.add
+      .particles(0, 0, 'ember', {
+        speed: { min: 10 * PX, max: 70 * PX },
+        angle: { min: 200, max: 340 },
+        lifespan: 420,
+        scale: { start: 1.1, end: 0 },
+        alpha: { start: 1, end: 0 },
+        gravityY: -120,
+        blendMode: 'ADD',
         emitting: false,
       })
       .setDepth(DEPTH.fx);
@@ -198,6 +214,7 @@ export class GameScene extends Phaser.Scene {
       const carried = carryFor(this.startCarry, id);
       if (carried) player.restore(carried.hp, carried.power);
       this.players.push(player);
+      this.powerFx.push(new PowerFx(this, player, this.sparkEmitter));
     });
 
     this.physics.add.collider(this.fireballs, this.built.solids, (f) => this.onFireballSolid(f as Phaser.Physics.Arcade.Sprite));
@@ -328,6 +345,7 @@ export class GameScene extends Phaser.Scene {
     this.updateRegion();
     this.updateCamera(dt);
     this.updateFireballs(time);
+    for (const fx of this.powerFx) fx.update(time);
     this.bg.update(cam.scrollX, time);
     this.emitHud();
   }
@@ -455,7 +473,7 @@ export class GameScene extends Phaser.Scene {
       if (reward === 'coin') this.popCoin(tile.x, tile.y - TILE);
       else {
         // Bloco de poder entrega o próximo que falta para quem bateu (fruta → flor); quem já tem tudo ganha moeda.
-        const kind = reward === 'heart' ? 'heart' : nextPowerDrop({ isBig: player.isBig, hasFire: player.powers.current !== null });
+        const kind = reward === 'heart' || reward === 'estrela' || reward === 'asas' ? reward : nextPowerDrop({ isBig: player.isBig, hasFire: player.powers.current !== null });
         if (kind === 'coin') this.popCoin(tile.x, tile.y - TILE);
         else this.spawnItem(kind, tile.x, tile.y);
       }
@@ -512,8 +530,8 @@ export class GameScene extends Phaser.Scene {
     this.grantCoin(1);
   }
 
-  private spawnItem(kind: 'flor-de-fogo' | 'heart' | 'grow', x: number, y: number): void {
-    const key = kind === 'heart' ? 'heart-full' : kind === 'grow' ? 'item-grow' : 'item-flower';
+  private spawnItem(kind: 'flor-de-fogo' | 'heart' | 'grow' | 'estrela' | 'asas', x: number, y: number): void {
+    const key = { heart: 'heart-full', grow: 'item-grow', 'flor-de-fogo': 'item-flower', estrela: 'item-star', asas: 'item-wings' }[kind];
     const item = this.items.create(x, y, key) as Phaser.Physics.Arcade.Sprite;
     item.setDepth(DEPTH.tiles - 1);
     item.setData('kind', kind);
@@ -555,21 +573,29 @@ export class GameScene extends Phaser.Scene {
       player.vitality.heal(1);
       player.grow();
     } else if (kind === 'grow') player.grow();
-    else player.powers.collect('flor-de-fogo');
+    else if (kind === 'estrela') {
+      player.timed.collect('estrela');
+      this.sfx.play('star');
+    } else if (kind === 'asas') {
+      player.timed.collect('asas');
+      this.sfx.play('wing');
+    } else player.powers.collect('flor-de-fogo');
   }
 
   private shootFireball(owner: Player): void {
     const dir = owner.facing;
-    const fb = this.fireballs.create(owner.x + dir * 30 * PX, owner.y + 4 * PX, 'fireball') as Phaser.Physics.Arcade.Sprite;
+    const fb = this.fireballs.create(owner.x + dir * 30 * PX, owner.y + 4 * PX, 'flame-0') as Phaser.Physics.Arcade.Sprite;
     fb.setDepth(DEPTH.items + 2);
+    fb.setFlipX(dir === -1);
+    fb.play('flame');
     fb.setData('born', this.time.now);
     fb.setData('dir', dir);
     fb.setData('owner', owner);
     const body = fb.body as Phaser.Physics.Arcade.Body;
-    body.setSize(14 * PX, 14 * PX);
+    body.setSize(26 * PX, 14 * PX);
     body.setGravityY(-WORLD_GRAVITY * 0.55);
     body.setVelocity(dir * FIREBALL_SPEED * PX, 60 * PX);
-    this.sfx.play('fire');
+    this.sfx.play('flame');
   }
 
   private onFireballSolid(fb: Phaser.Physics.Arcade.Sprite): void {
@@ -584,6 +610,8 @@ export class GameScene extends Phaser.Scene {
   private explodeFireball(fb: Phaser.Physics.Arcade.Sprite): void {
     if (!fb.active) return;
     this.sparkEmitter.explode(6, fb.x, fb.y);
+    this.emberEmitter.explode(12, fb.x, fb.y);
+    this.add.image(fb.x, fb.y, 'burst').setDepth(DEPTH.fx).setScale(0.6).setBlendMode(Phaser.BlendModes.ADD);
     fb.destroy();
   }
 
@@ -594,7 +622,7 @@ export class GameScene extends Phaser.Scene {
     for (const child of this.fireballs.getChildren() as Phaser.Physics.Arcade.Sprite[]) {
       if (!child.active) continue;
       const dir = child.getData('dir') as 1 | -1;
-      child.angle += dir * 18;
+      if (time % 3 < 1) this.emberEmitter.explode(1, child.x - dir * 14 * PX, child.y);
       const expired = time - (child.getData('born') as number) > lifetime;
       const outside = child.x < cam.scrollX - 200 || child.x > cam.scrollX + GAME_WIDTH + 200 || child.y > worldH + 100;
       if (expired || outside) {
@@ -642,6 +670,13 @@ export class GameScene extends Phaser.Scene {
 
   private onEnemyTouch(player: Player, enemy: Enemy): void {
     if (enemy.dead || player.dead || this.finished) return;
+    if (player.timed.has('estrela')) {
+      enemy.knockOut(player.facing);
+      this.progress.addScore(STOMP_SCORE);
+      this.sfx.play('stomp');
+      this.sparkEmitter.explode(8, enemy.x, enemy.y);
+      return;
+    }
     const pb = player.arcadeBody;
     const eb = enemy.arcadeBody;
     const falling = pb.velocity.y > 40 * PX;

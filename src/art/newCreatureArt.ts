@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PALETTE } from '../game/constants';
+import { createPowerAnimations, createPowerTextures } from './powerArt';
 import { canvasTexture, circle, ellipse, fillStroke, OUT, polygon, type Ctx } from './canvasArt';
 
 /** Besouro Saltador, Tatu Couraçado e Morcego de Cristal. Arte original e provisória. */
@@ -129,6 +130,7 @@ function drawMorcego(ctx: Ctx, wingsUp: boolean): void {
 }
 
 export function createNewCreatureTextures(scene: Phaser.Scene): void {
+  createPowerTextures(scene);
   canvasTexture(scene, 'besouro-0', BESOURO_FRAME.w, BESOURO_FRAME.h, (c) => drawBesouro(c, 0));
   canvasTexture(scene, 'besouro-1', BESOURO_FRAME.w, BESOURO_FRAME.h, (c) => drawBesouro(c, 1));
   canvasTexture(scene, 'besouro-squash', BESOURO_FRAME.w, BESOURO_FRAME.h, (c) => drawBesouro(c, 0, true));
@@ -139,6 +141,7 @@ export function createNewCreatureTextures(scene: Phaser.Scene): void {
 }
 
 export function createNewCreatureAnimations(scene: Phaser.Scene): void {
+  createPowerAnimations(scene);
   const make = (key: string, frames: string[], frameRate: number): void => {
     if (scene.anims.exists(key)) return;
     scene.anims.create({ key, frames: frames.map((k) => ({ key: k })), frameRate, repeat: -1 });

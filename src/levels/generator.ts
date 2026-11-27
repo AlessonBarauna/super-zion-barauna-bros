@@ -35,6 +35,13 @@ export const WORLDS: WorldInfo[] = [
 export const worldInfo = (world: number): WorldInfo => WORLDS[world - 1] ?? WORLDS[0]!;
 
 /** Gerador pseudoaleatório pequeno e estável (mulberry32). */
+/** Sorteia o prêmio de um bloco de poder "extra": fogo, coração e (mais raros) Asas e Estrela. */
+function bonusReward(r: number): BlockReward {
+  if (r < 0.4) return 'flor-de-fogo';
+  if (r < 0.7) return 'heart';
+  return r < 0.86 ? 'asas' : 'estrela';
+}
+
 export function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -237,7 +244,7 @@ export function generateLevel(world: number, stage: number): LevelData {
       flatSpans.push({ from: start, to: start + 2 });
       const count = Math.min(5, 4 + Math.floor(difficulty * 2));
       for (let e = 0; e < count; e++) enemies.push({ kind: pick(groundPool), x: start + 4 + e * 3, y: 8 });
-      blocks.push({ kind: 'brick', x: start + 7, y: 5 }, { kind: 'surprise', x: start + 8, y: 5, reward: rand() < 0.5 ? 'flor-de-fogo' : 'heart' }, { kind: 'brick', x: start + 9, y: 5 });
+      blocks.push({ kind: 'brick', x: start + 7, y: 5 }, { kind: 'surprise', x: start + 8, y: 5, reward: bonusReward(rand()) }, { kind: 'brick', x: start + 9, y: 5 });
       coins.push(...line(start + 12, start + 15, 6));
       x = start + len;
     } else if (kind === 'double-gap') {
@@ -301,7 +308,7 @@ export function generateLevel(world: number, stage: number): LevelData {
       for (let i = 4; i <= 13; i++) spikes.push({ x: start + i, y: 8 });
       platforms.push({ x: start + 4, y: 6, w: 2 }, { x: start + 8, y: 4, w: 2 }, { x: start + 12, y: 6, w: 2 });
       coins.push(...line(start + 4, start + 5, 5), ...line(start + 8, start + 9, 3), ...line(start + 12, start + 13, 5));
-      blocks.push({ kind: 'surprise', x: start + 8, y: 1, reward: rand() < 0.5 ? 'flor-de-fogo' : 'heart' });
+      blocks.push({ kind: 'surprise', x: start + 8, y: 1, reward: rand() < 0.5 ? 'estrela' : 'asas' });
       x = start + len;
     } else if (kind === 'lifts') {
       // Elevadores: duas plataformas que sobem e descem sobre os espinhos. É preciso esperar o momento certo.

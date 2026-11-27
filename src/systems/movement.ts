@@ -171,6 +171,8 @@ export function stepMovement(
   onGround: boolean,
   bodyVx: number,
   bodyVy: number,
+  /** Com Asas: bate asas no ar quantas vezes quiser e, segurando o pulo, plana. */
+  wings = false,
 ): MovementState {
   const s: MovementState = { ...prev, justJumped: false, justAirJumped: false, justLanded: false, impactSpeed: 0 };
   let vx = bodyVx;
@@ -210,6 +212,11 @@ export function stepMovement(
     s.buffer = 0;
     s.coyote = 0;
     s.justJumped = true;
+  } else if (wings && !onGround && s.coyote === 0 && input.jumpPressed) {
+    vy = -p.jumpVelocity * 0.8;
+    s.jumping = true;
+    s.buffer = 0;
+    s.justAirJumped = true;
   } else if (!onGround && s.coyote === 0 && input.jumpPressed && s.airJumpsLeft > 0) {
     vy = -p.jumpVelocity * p.airJumpScale;
     s.airJumpsLeft -= 1;
@@ -222,10 +229,10 @@ export function stepMovement(
   }
   if (vy >= 0 && !s.justJumped && !s.justAirJumped) s.jumping = false;
 
-  vy = Math.min(vy, p.maxFallSpeed);
+  vy = Math.min(vy, wings && input.jumpHeld && !onGround && vy > 0 ? p.maxFallSpeed * 0.22 : p.maxFallSpeed);
   s.vx = vx;
   s.vy = vy;
-  s.gravityScale = vy > 0 ? p.fallGravityScale : 1;
+  s.gravityScale = wings ? (input.jumpHeld && vy > 0 ? 0.35 : 0.8) : vy > 0 ? p.fallGravityScale : 1;
   s.onGround = onGround;
   return s;
 }
