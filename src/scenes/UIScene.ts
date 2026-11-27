@@ -11,6 +11,8 @@ export interface PlayerHud {
   hp: number;
   maxHp: number;
   power: string | null;
+  /** Poder temporário ativo (Asas/Estrela) e quanto resta (0–1). */
+  timed?: { id: 'asas' | 'estrela'; fraction: number } | null;
   dead: boolean;
 }
 
@@ -28,6 +30,9 @@ export interface HudSnapshot {
 interface PlayerWidgets {
   hearts: Phaser.GameObjects.Image[];
   powerIcon: Phaser.GameObjects.Image;
+  /** Barrinha de tempo do poder temporário (só solo). */
+  powerBar?: Phaser.GameObjects.Graphics;
+  slot?: Phaser.GameObjects.Graphics;
   portrait: Phaser.GameObjects.Image;
   /** Corações do quadro anterior (para animar ganho e perda). */
   prevHp?: number;
@@ -35,6 +40,13 @@ interface PlayerWidgets {
 
 /** Posição do painel do jogador 2 no HUD cooperativo (entre a pontuação e o tempo). */
 const P2_PANEL_X = 826;
+
+/** Placa translúcida do HUD: vidro escuro com filete claro e brilho no topo. */
+function plate(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, r: number): void {
+  g.fillStyle(0x0c1a26, 0.62).fillRoundedRect(x, y, w, h, r);
+  g.fillStyle(0xffffff, 0.07).fillRoundedRect(x + 3, y + 3, w - 6, h * 0.42, { tl: r - 3, tr: r - 3, bl: 6, br: 6 });
+  g.lineStyle(2, 0xffd84a, 0.4).strokeRoundedRect(x, y, w, h, r);
+}
 
 export const HUD_EVENT = 'hud-update';
 export const LEVEL_INTRO_EVENT = 'level-intro';
@@ -63,9 +75,8 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     const coop = charactersFor(saveManager.data.mode).length > 1;
     const panel = this.add.graphics().setDepth(DEPTH.hud);
-    panel.fillStyle(0x10202c, 0.55);
-    panel.fillRoundedRect(GAME_WIDTH / 2 - 170, 12, 340, 62, 22);
-    panel.fillRoundedRect(GAME_WIDTH - 224, 12, 210, 62, 22);
+    plate(panel, GAME_WIDTH / 2 - 170, 12, 340, 62, 22);
+    plate(panel, GAME_WIDTH - 224, 12, 210, 62, 22);
     this.widgets = [];
 
     this.add.text(GAME_WIDTH / 2, 20, 'PONTOS', { ...textStyle(16), strokeThickness: 4 }).setOrigin(0.5, 0).setDepth(DEPTH.hud);
@@ -75,28 +86,30 @@ export class UIScene extends Phaser.Scene {
 
     if (!coop) {
       // Modo individual: vidas, corações e moedas à esquerda; poder embaixo da pontuação.
-      panel.fillRoundedRect(14, 12, 290, 112, 22);
-      panel.fillRoundedRect(GAME_WIDTH / 2 - 36, 82, 72, 62, 18);
+      plate(panel, 14, 12, 290, 112, 22);
       const portrait = this.add.image(46, 44, 'zion-idle-0').setScale(0.52).setDepth(DEPTH.hud);
       this.livesText = this.add.text(82, 25, '×5', textStyle(34)).setDepth(DEPTH.hud);
       const hearts: Phaser.GameObjects.Image[] = [];
       for (let i = 0; i < 3; i++) hearts.push(this.add.image(180 + i * 38, 42, 'heart-full').setScale(0.9).setDepth(DEPTH.hud));
-      this.add.image(46, 96, 'coin-0').setScale(1).setDepth(DEPTH.hud);
+      this.add.image(46, 96, 'coin-0').setScale(0.95).setDepth(DEPTH.hud);
       this.coinsText = this.add.text(82, 76, '×00', textStyle(34)).setDepth(DEPTH.hud);
-      this.add.text(GAME_WIDTH / 2, 138, 'X', { ...textStyle(14), strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(DEPTH.hud);
+      // Espaço do poder: só aparece quando há poder ativo (nada de caixa vazia).
+      const slot = this.add.graphics().setDepth(DEPTH.hud).setVisible(false);
+      plate(slot, GAME_WIDTH / 2 - 40, 82, 80, 70, 18);
       const powerIcon = this.add.image(GAME_WIDTH / 2, 110, 'item-flower').setScale(0.9).setDepth(DEPTH.hud).setVisible(false);
-      this.widgets.push({ hearts, powerIcon, portrait });
+      const powerBar = this.add.graphics().setDepth(DEPTH.hud);
+      this.widgets.push({ hearts, powerIcon, powerBar, slot, portrait });
     } else {
       // Cooperativo: P1 e vidas/moedas da equipe à esquerda; P2 ao lado do tempo.
-      panel.fillRoundedRect(14, 12, 332, 112, 22);
-      panel.fillRoundedRect(P2_PANEL_X, 12, 224, 62, 22);
+      plate(panel, 14, 12, 332, 112, 22);
+      plate(panel, P2_PANEL_X, 12, 224, 62, 22);
       const p1x = 46;
       const zion = this.add.image(p1x, 44, 'zion-idle-0').setScale(0.52).setDepth(DEPTH.hud);
       const h1: Phaser.GameObjects.Image[] = [];
       for (let i = 0; i < 3; i++) h1.push(this.add.image(94 + i * 36, 42, 'heart-full').setScale(0.85).setDepth(DEPTH.hud));
       const pw1 = this.add.image(228, 42, 'item-flower').setScale(0.8).setDepth(DEPTH.hud).setVisible(false);
       this.add.text(p1x, 86, 'P1', { ...textStyle(14), strokeThickness: 3 }).setOrigin(0.5, 0).setDepth(DEPTH.hud);
-      this.add.image(94, 100, 'coin-0').setScale(0.8).setDepth(DEPTH.hud);
+      this.add.image(94, 100, 'coin-0').setScale(0.75).setDepth(DEPTH.hud);
       this.coinsText = this.add.text(118, 84, '×00', textStyle(28)).setDepth(DEPTH.hud);
       this.livesText = this.add.text(214, 86, 'VIDAS ×5', textStyle(22)).setDepth(DEPTH.hud);
       this.widgets.push({ hearts: h1, powerIcon: pw1, portrait: zion });
@@ -130,7 +143,18 @@ export class UIScene extends Phaser.Scene {
     h.players.forEach((player, idx) => {
       const w = this.widgets[idx];
       if (!w) return;
-      w.powerIcon.setVisible(player.power === 'flor-de-fogo' && !player.dead);
+      const tex = player.timed ? (player.timed.id === 'asas' ? 'item-wings' : 'item-star') : 'item-flower';
+      const active = (player.timed !== null && player.timed !== undefined) || player.power === 'flor-de-fogo';
+      w.powerIcon.setTexture(tex).setVisible(active && !player.dead);
+      w.slot?.setVisible(active && !player.dead);
+      if (w.powerBar) {
+        w.powerBar.clear();
+        if (player.timed && !player.dead) {
+          const blink = player.timed.fraction < 0.25 && Math.floor(this.time.now / 140) % 2 === 0;
+          w.powerBar.fillStyle(0x000000, 0.5).fillRoundedRect(GAME_WIDTH / 2 - 28, 138, 56, 8, 4);
+          if (!blink) w.powerBar.fillStyle(player.timed.id === 'estrela' ? 0xffd84a : 0x8fd3ff, 1).fillRoundedRect(GAME_WIDTH / 2 - 27, 139, Math.max(3, 54 * player.timed.fraction), 6, 3);
+        }
+      }
       w.portrait.setAlpha(player.dead ? 0.4 : 1);
       w.hearts.forEach((heart, i) => {
         heart.setTexture(i < player.hp ? 'heart-full' : 'heart-empty');
