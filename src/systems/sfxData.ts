@@ -1,6 +1,6 @@
 /** Receitas dos efeitos sonoros (sem Phaser, para poder testar em Node). */
 
-export type SfxName = 'jump' | 'coin' | 'stomp' | 'hurt' | 'bump' | 'checkpoint' | 'powerup' | 'fire' | 'break' | 'life' | 'win' | 'death' | 'land' | 'airjump' | 'grow' | 'warp' | 'warn' | 'orb' | 'rock' | 'quake' | 'immune' | 'bossdown';
+export type SfxName = 'jump' | 'coin' | 'stomp' | 'hurt' | 'bump' | 'checkpoint' | 'powerup' | 'fire' | 'break' | 'life' | 'win' | 'death' | 'land' | 'airjump' | 'grow' | 'warp' | 'warn' | 'orb' | 'rock' | 'quake' | 'immune' | 'bossdown' | 'star' | 'wing' | 'flame';
 
 export interface Tone {
   from: number;
@@ -52,6 +52,20 @@ export const SOUNDS: Record<SfxName, Tone[]> = {
   death: [{ from: 420, to: 60, dur: 0.7, type: 'sawtooth', vol: 0.5 }],
   // Pulo duplo: mais agudo e curto que o primeiro pulo.
   airjump: [{ from: 560, to: 1120, dur: 0.12, type: 'square', vol: 0.4 }],
+  // Asas: batida suave e aguda.
+  wing: [{ from: 420, to: 760, dur: 0.1, type: 'triangle', vol: 0.4 }],
+  // Estrela: arpejo brilhante subindo.
+  star: [
+    { from: 659, to: 659, dur: 0.08, type: 'square', vol: 0.35 },
+    { from: 880, to: 880, dur: 0.08, type: 'square', vol: 0.35, delay: 0.08 },
+    { from: 1175, to: 1175, dur: 0.08, type: 'square', vol: 0.35, delay: 0.16 },
+    { from: 1568, to: 1568, dur: 0.3, type: 'triangle', vol: 0.45, delay: 0.24 },
+  ],
+  // Fogo: chiado mais cheio que antes.
+  flame: [
+    { from: 1100, to: 300, dur: 0.16, type: 'sawtooth', vol: 0.3 },
+    { from: 500, to: 140, dur: 0.14, type: 'square', vol: 0.18, delay: 0.02 },
+  ],
   // Fruta de Baraúna: sobe em ondas, mais "cheio" que o powerup comum.
   grow: [
     { from: 262, to: 523, dur: 0.12, type: 'triangle', vol: 0.7 },

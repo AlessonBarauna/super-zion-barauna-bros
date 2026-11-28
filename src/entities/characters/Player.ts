@@ -13,6 +13,7 @@ import {
   type PlayerAnimation,
 } from '../../systems/movement';
 import { PowerState, type PowerId } from '../../systems/powers';
+import { TimedPowerState } from '../../systems/timedPowers';
 import { START_HP, Vitality } from '../../systems/vitality';
 import type { CharacterDef } from './characters';
 
@@ -30,6 +31,8 @@ export const SMALL_SCALE = 0.78;
 export class Player extends Phaser.Physics.Arcade.Sprite {
   readonly vitality = new Vitality(3);
   readonly powers = new PowerState();
+  /** Asas ou Estrela (temporários; somem ao morrer e não passam de fase). */
+  readonly timed = new TimedPowerState();
   /** Projéteis deste jogador ainda em cena (atualizado pela cena). */
   activeShots = 0;
   dead = false;
@@ -165,6 +168,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const body = this.arcadeBody;
     this.vitality.update(dt);
     this.powers.update(dt);
+    this.timed.update(dt);
     const polled = this.controls.poll();
     const groundedBefore = this.onGround;
     this.feetY = this.arcadeBody.bottom;
@@ -191,7 +195,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.emit('fire' satisfies PlayerEvent);
     }
     const onGround = this.onGround;
-    const s = stepMovement(this.mv, input, dt, this.def.params, onGround, body.velocity.x, body.velocity.y);
+    const s = stepMovement(this.mv, input, dt, this.def.params, onGround, body.velocity.x, body.velocity.y, this.timed.has('asas'));
     this.mv = s;
 
     if (this.stunTimer <= 0) body.setVelocityX(s.vx);
@@ -242,9 +246,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   takeHit(sourceX: number): void {
     if (this.dead || this.victory) return;
+    if (this.timed.has('estrela')) return; // invencível
     const result = this.vitality.hit();
     if (result === 'ignored') return;
     this.powers.lose();
+    this.timed.clear();
     if (result === 'dead') {
       this.die();
       return;
@@ -260,6 +266,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.dead) return;
     this.vitality.kill();
     this.powers.lose();
+    this.timed.clear();
     this.die();
   }
 
@@ -285,6 +292,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.landTimer = 0;
     this.mv = createMovementState();
     this.powers.lose();
+    this.timed.clear();
     this.attackTimer = 0;
     this.vitality.reset(START_HP);
     this.vitality.grantInvulnerability(2.2);
