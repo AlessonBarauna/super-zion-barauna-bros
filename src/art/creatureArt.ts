@@ -3,6 +3,7 @@ import { PALETTE } from '../game/constants';
 import type { BossKind } from '../levels/types';
 import { BOSS_BY_WORLD } from '../systems/boss';
 import { BOSS_DRAWERS } from './bossArt';
+import { createNewCreatureAnimations, createNewCreatureTextures } from './newCreatureArt';
 import { canvasTexture, circle, ellipse, fillStroke, OUT, polygon, roundRectPath, type Ctx } from './canvasArt';
 
 /** Corvo Umbral, Ouriço de Cristal e o chefão (um corpo base, recolorido por mundo). Arte original e provisória. */
@@ -179,6 +180,7 @@ function drawBossBody(ctx: Ctx, pose: BossPose, kind: BossKind): void {
 }
 
 export function createCreatureTextures(scene: Phaser.Scene): void {
+  createNewCreatureTextures(scene);
   canvasTexture(scene, 'corvo-0', CORVO_FRAME.w, CORVO_FRAME.h, (c) => drawCorvo(c, true));
   canvasTexture(scene, 'corvo-1', CORVO_FRAME.w, CORVO_FRAME.h, (c) => drawCorvo(c, false));
   canvasTexture(scene, 'ourico-0', OURICO_FRAME.w, OURICO_FRAME.h, (c) => drawOurico(c, 0));
@@ -195,6 +197,7 @@ export function createCreatureAnimations(scene: Phaser.Scene): void {
     if (scene.anims.exists(key)) return;
     scene.anims.create({ key, frames: frames.map((k) => ({ key: k })), frameRate, repeat: -1 });
   };
+  createNewCreatureAnimations(scene);
   make('corvo-fly', ['corvo-0', 'corvo-1'], 8);
   make('ourico-walk', ['ourico-0', 'ourico-1'], 5);
   for (const kind of BOSS_BY_WORLD) make(`boss-${kind}-walk`, [`boss-${kind}-walk0`, `boss-${kind}-walk1`], 5);

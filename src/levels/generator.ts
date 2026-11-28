@@ -1,6 +1,6 @@
 import { BOSS_BY_WORLD } from '../systems/boss';
 import { caveRoom, houseRoom, ROOM_W, roomEntry } from './rooms';
-import type { BlockReward, BlockSpec, DoorSpec, EnemySpec, GroundSegment, LevelData, MovingPlatformSpec, PipeSpec, PlatformSpec, TilePoint, WorldTheme } from './types';
+import { FLYING_ENEMIES, type BlockReward, type BlockSpec, type DoorSpec, type EnemySpec, type GroundSegment, type LevelData, type MovingPlatformSpec, type PipeSpec, type PlatformSpec, type TilePoint, type WorldTheme } from './types';
 
 /**
  * Gerador determinístico de fases a partir de "trechos" (chunks) validados.
@@ -62,6 +62,11 @@ type ChunkKind =
   | 'pipes'
   | 'warp-pipe'
   | 'exit-pipe'
+  | 'tower'
+  | 'lifts'
+  | 'tatu-run'
+  | 'bat-sky'
+  | 'hop-garden'
   | 'warp-door'
   | 'spike-pit'
   | 'spike-field'
@@ -77,14 +82,14 @@ type ChunkKind =
  * o deserto tem vãos largos, as engrenagens têm pontes encadeadas, o abismo mistura tudo.
  */
 const WORLD_MIX: Record<number, Partial<Record<ChunkKind, number>>> = {
-  1: { flat: 2, gap: 2, platforms: 3, spikes: 1, stairs: 2, pipes: 2 },
-  2: { flat: 1, gap: 1, platforms: 2, spikes: 2, stairs: 1, pipes: 1, 'spike-pit': 3, flyers: 2, gauntlet: 1 },
-  3: { flat: 1, gap: 3, platforms: 1, bridge: 3, 'double-gap': 3, pyramid: 1, spikes: 1 },
-  4: { flat: 1, stairs: 2, pyramid: 3, gauntlet: 2, platforms: 2, 'spike-pit': 1, gap: 1, flyers: 1 },
-  5: { flat: 1, 'spike-field': 3, gauntlet: 2, flyers: 2, platforms: 2, gap: 1, pipes: 1, 'spike-pit': 1 },
-  6: { flat: 1, 'bridge-chain': 3, 'double-gap': 2, bridge: 2, 'spike-field': 1, gauntlet: 1, pyramid: 1 },
-  7: { flat: 1, 'double-gap': 3, 'bridge-chain': 2, flyers: 3, platforms: 2, gap: 2 },
-  8: { gauntlet: 3, 'spike-field': 2, 'spike-pit': 2, 'double-gap': 2, 'bridge-chain': 2, flyers: 2, pyramid: 1, platforms: 1 },
+  1: { flat: 2, gap: 2, platforms: 3, spikes: 2, stairs: 2, pipes: 2, 'hop-garden': 2, tower: 1 },
+  2: { flat: 1, gap: 1, platforms: 2, spikes: 2, stairs: 1, pipes: 1, 'spike-pit': 3, flyers: 2, gauntlet: 1, 'bat-sky': 2, tower: 2, 'hop-garden': 1 },
+  3: { flat: 1, gap: 3, platforms: 1, bridge: 3, 'double-gap': 3, pyramid: 1, spikes: 1, lifts: 2, 'tatu-run': 2, 'hop-garden': 1 },
+  4: { flat: 1, stairs: 2, pyramid: 3, gauntlet: 2, platforms: 2, 'spike-pit': 1, gap: 1, flyers: 1, tower: 2, 'tatu-run': 2, 'bat-sky': 1 },
+  5: { flat: 1, 'spike-field': 3, gauntlet: 2, flyers: 2, platforms: 2, gap: 1, pipes: 1, 'spike-pit': 1, lifts: 2, 'bat-sky': 2, 'hop-garden': 1 },
+  6: { flat: 1, 'bridge-chain': 3, 'double-gap': 2, bridge: 2, 'spike-field': 1, gauntlet: 1, pyramid: 1, lifts: 3, 'tatu-run': 2, tower: 1 },
+  7: { flat: 1, 'double-gap': 3, 'bridge-chain': 2, flyers: 3, platforms: 2, gap: 2, 'bat-sky': 3, lifts: 2, tower: 2 },
+  8: { gauntlet: 3, 'spike-field': 2, 'spike-pit': 2, 'double-gap': 2, 'bridge-chain': 2, flyers: 2, pyramid: 1, platforms: 1, 'tatu-run': 3, 'bat-sky': 2, lifts: 3, tower: 2 },
 };
 
 /** Fase gerada: etapa 1..3 (a 4 é a arena do chefão). */
@@ -120,13 +125,19 @@ export function generateLevel(world: number, stage: number): LevelData {
   x = startEnd + 1;
   coins.push(...line(5, 7, 8));
 
-  const chunkCount = 8 + stage * 2 + Math.round(difficulty * 5);
+  // Fases bem mais longas que antes (cerca de 1,6x), crescendo com o mundo e a etapa.
+  const chunkCount = 12 + stage * 3 + Math.round(difficulty * 8);
+  const groundPool: EnemySpec['kind'][] = ['cogumelo-sombrio'];
+  if (stage >= 2 || world >= 2) groundPool.push('besouro-saltador');
+  if (world >= 2) groundPool.push('ourico-cristal');
+  if (world >= 3) groundPool.push('tatu-couracado');
   const kinds: ChunkKind[] = [];
   for (const [k, w] of Object.entries(WORLD_MIX[world] ?? WORLD_MIX[1]!) as Array<[ChunkKind, number]>) {
     for (let i = 0; i < w; i++) kinds.push(k);
   }
   // Fases 2 e 3 de cada mundo trazem ainda mais perigo.
-  if (stage >= 2) kinds.push('gauntlet', 'spike-pit');
+  if (stage >= 2) kinds.push('gauntlet', 'spike-pit', 'tower', 'hop-garden');
+  if (stage >= 3) kinds.push('lifts', 'bat-sky', 'gauntlet');
   if (stage >= 3 || world >= 2) kinds.push('bridge');
 
   let lastKind: ChunkKind = 'flat';
@@ -144,11 +155,9 @@ export function generateLevel(world: number, stage: number): LevelData {
       ground.push({ from: start, to: start + len - 1 });
       flatSpans.push({ from: start, to: start + len - 1 });
       if (rand() < 0.7) coins.push(...line(start + 2, start + 4 + Math.floor(rand() * 2), 8));
-      const enemyKinds: EnemySpec['kind'][] = ['cogumelo-sombrio'];
-      if (world >= 2) enemyKinds.push('ourico-cristal');
-      const count = 1 + Math.floor(rand() * (1 + difficulty * 2));
+      const count = 1 + Math.floor(rand() * (2 + difficulty * 3));
       for (let e = 0; e < count; e++) {
-        enemies.push({ kind: pick(enemyKinds), x: start + 3 + Math.floor(rand() * (len - 6)), y: 8 });
+        enemies.push({ kind: pick(groundPool), x: start + 3 + Math.floor(rand() * (len - 6)), y: 8 });
       }
       if (world >= 2 && rand() < 0.4 + difficulty * 0.3) {
         enemies.push({ kind: 'corvo-umbral', x: start + 2 + Math.floor(rand() * (len - 4)), y: 5 });
@@ -226,9 +235,8 @@ export function generateLevel(world: number, stage: number): LevelData {
       const len = 19;
       ground.push({ from: start, to: start + len - 1 });
       flatSpans.push({ from: start, to: start + 2 });
-      const count = 3 + Math.floor(difficulty * 3);
-      const kindsHere: EnemySpec['kind'][] = world >= 2 ? ['cogumelo-sombrio', 'ourico-cristal'] : ['cogumelo-sombrio'];
-      for (let e = 0; e < count; e++) enemies.push({ kind: pick(kindsHere), x: start + 4 + e * 3, y: 8 });
+      const count = Math.min(5, 4 + Math.floor(difficulty * 2));
+      for (let e = 0; e < count; e++) enemies.push({ kind: pick(groundPool), x: start + 4 + e * 3, y: 8 });
       blocks.push({ kind: 'brick', x: start + 7, y: 5 }, { kind: 'surprise', x: start + 8, y: 5, reward: rand() < 0.5 ? 'flor-de-fogo' : 'heart' }, { kind: 'brick', x: start + 9, y: 5 });
       coins.push(...line(start + 12, start + 15, 6));
       x = start + len;
@@ -284,6 +292,52 @@ export function generateLevel(world: number, stage: number): LevelData {
       const count = 2 + (difficulty > 0.5 ? 1 : 0);
       for (let e = 0; e < count; e++) enemies.push({ kind: 'corvo-umbral', x: start + 6 + e * 4, y: 4 + (e % 2) });
       coins.push(...line(start + 3, start + 5, 8));
+      x = start + len;
+    } else if (kind === 'tower') {
+      // Torre: sobe e desce por plataformas sobre espinhos; no alto há moedas e um presente para quem arrisca.
+      const len = 17;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (let i = 4; i <= 13; i++) spikes.push({ x: start + i, y: 8 });
+      platforms.push({ x: start + 4, y: 6, w: 2 }, { x: start + 8, y: 4, w: 2 }, { x: start + 12, y: 6, w: 2 });
+      coins.push(...line(start + 4, start + 5, 5), ...line(start + 8, start + 9, 3), ...line(start + 12, start + 13, 5));
+      blocks.push({ kind: 'surprise', x: start + 8, y: 1, reward: rand() < 0.5 ? 'flor-de-fogo' : 'heart' });
+      x = start + len;
+    } else if (kind === 'lifts') {
+      // Elevadores: duas plataformas que sobem e descem sobre os espinhos. É preciso esperar o momento certo.
+      const len = 16;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (let i = 3; i <= 12; i++) spikes.push({ x: start + i, y: 8 });
+      const period = Math.max(3.6, 5 - difficulty * 1.2);
+      movingPlatforms.push({ x: start + 4, y: 7, w: 3, axis: 'y', range: 3, period }, { x: start + 9, y: 7, w: 3, axis: 'y', range: 3, period, phase: 0.5 });
+      coins.push(...line(start + 4, start + 6, 3), ...line(start + 9, start + 11, 3));
+      x = start + len;
+    } else if (kind === 'tatu-run') {
+      // Um Tatu Couraçado (não se pisa!) vem correndo: fogo do bloco, pulo duplo ou subir na plataforma.
+      const len = 19;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      blocks.push({ kind: 'brick', x: start + 3, y: 5 }, { kind: 'surprise', x: start + 4, y: 5, reward: 'flor-de-fogo' }, { kind: 'brick', x: start + 5, y: 5 });
+      platforms.push({ x: start + 8, y: 6, w: 3 });
+      coins.push(...line(start + 8, start + 10, 5));
+      enemies.push({ kind: 'tatu-couracado', x: start + 15, y: 8 }, { kind: 'besouro-saltador', x: start + 11, y: 8 });
+      x = start + len;
+    } else if (kind === 'bat-sky') {
+      // Morcegos de Cristal em "cobra": cada um numa fase da onda. Leia o ritmo e passe no vão.
+      const len = 25;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (let e = 0; e < 3; e++) enemies.push({ kind: 'morcego-cristal', x: start + 9 + e * 4, y: 6 + (e % 2) });
+      coins.push(...line(start + 4, start + 6, 8), ...line(start + 20, start + 22, 8));
+      x = start + len;
+    } else if (kind === 'hop-garden') {
+      // Besouros saltadores: pulam a cada poucos segundos. Pise neles no momento certo.
+      const len = 16;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (let e = 0; e < 3; e++) enemies.push({ kind: 'besouro-saltador', x: start + 5 + e * 4, y: 8 });
+      coins.push(...line(start + 4, start + 6, 5), ...line(start + 12, start + 14, 5));
       x = start + len;
     } else if (kind === 'platforms') {
       const len = 12;
@@ -385,7 +439,7 @@ export function generateLevel(world: number, stage: number): LevelData {
   // Remove inimigos que ficaram sobre a mesma coluna de espinhos/blocos/checkpoints.
   const cleanEnemies = enemies.filter((e) => {
     // Corvo patrulha ±3 blocos: não pode sobrevoar o pouso de um vão/ponte.
-    if (e.kind === 'corvo-umbral') return !landings.some((l) => e.x >= l - 3 && e.x < l + 3);
+    if (FLYING_ENEMIES.includes(e.kind)) return !landings.some((l) => e.x >= l - 4 && e.x < l + 4);
     if (inLanding(e.x)) return false;
     return (
       !spikes.some((s) => Math.abs(s.x - e.x) <= 1) &&
