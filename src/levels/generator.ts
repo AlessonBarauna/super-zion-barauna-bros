@@ -81,7 +81,12 @@ type ChunkKind =
   | 'double-gap'
   | 'pyramid'
   | 'bridge-chain'
-  | 'flyers';
+  | 'flyers'
+  | 'mario-blocks'
+  | 'mario-pipes'
+  | 'mario-pit'
+  | 'mario-stairs-pit'
+  | 'mario-cluster';
 
 /**
  * Personalidade de cada mundo: quantos trechos de cada tipo entram no sorteio.
@@ -89,13 +94,13 @@ type ChunkKind =
  * o deserto tem vãos largos, as engrenagens têm pontes encadeadas, o abismo mistura tudo.
  */
 const WORLD_MIX: Record<number, Partial<Record<ChunkKind, number>>> = {
-  1: { flat: 2, gap: 2, platforms: 3, spikes: 2, stairs: 2, pipes: 2, 'hop-garden': 2, tower: 1 },
-  2: { flat: 1, gap: 1, platforms: 2, spikes: 2, stairs: 1, pipes: 1, 'spike-pit': 3, flyers: 2, gauntlet: 1, 'bat-sky': 2, tower: 2, 'hop-garden': 1 },
-  3: { flat: 1, gap: 3, platforms: 1, bridge: 3, 'double-gap': 3, pyramid: 1, spikes: 1, lifts: 2, 'tatu-run': 2, 'hop-garden': 1 },
-  4: { flat: 1, stairs: 2, pyramid: 3, gauntlet: 2, platforms: 2, 'spike-pit': 1, gap: 1, flyers: 1, tower: 2, 'tatu-run': 2, 'bat-sky': 1 },
-  5: { flat: 1, 'spike-field': 3, gauntlet: 2, flyers: 2, platforms: 2, gap: 1, pipes: 1, 'spike-pit': 1, lifts: 2, 'bat-sky': 2, 'hop-garden': 1 },
-  6: { flat: 1, 'bridge-chain': 3, 'double-gap': 2, bridge: 2, 'spike-field': 1, gauntlet: 1, pyramid: 1, lifts: 3, 'tatu-run': 2, tower: 1 },
-  7: { flat: 1, 'double-gap': 3, 'bridge-chain': 2, flyers: 3, platforms: 2, gap: 2, 'bat-sky': 3, lifts: 2, tower: 2 },
+  1: { flat: 1, gap: 2, platforms: 3, spikes: 2, stairs: 2, pipes: 2, 'hop-garden': 2, tower: 1, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
+  2: { flat: 1, gap: 1, platforms: 2, spikes: 2, stairs: 1, pipes: 1, 'spike-pit': 3, flyers: 2, gauntlet: 1, 'bat-sky': 2, tower: 2, 'hop-garden': 1, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
+  3: { flat: 1, gap: 3, platforms: 1, bridge: 3, 'double-gap': 3, pyramid: 1, spikes: 1, lifts: 2, 'tatu-run': 2, 'hop-garden': 1, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
+  4: { flat: 1, stairs: 2, pyramid: 3, gauntlet: 2, platforms: 2, 'spike-pit': 1, gap: 1, flyers: 1, tower: 2, 'tatu-run': 2, 'bat-sky': 1, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
+  5: { flat: 1, 'spike-field': 3, gauntlet: 2, flyers: 2, platforms: 2, gap: 1, pipes: 1, 'spike-pit': 1, lifts: 2, 'bat-sky': 2, 'hop-garden': 1, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
+  6: { flat: 1, 'bridge-chain': 3, 'double-gap': 2, bridge: 2, 'spike-field': 1, gauntlet: 1, pyramid: 1, lifts: 3, 'tatu-run': 2, tower: 1, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
+  7: { flat: 1, 'double-gap': 3, 'bridge-chain': 2, flyers: 3, platforms: 2, gap: 2, 'bat-sky': 3, lifts: 2, tower: 2, 'mario-blocks': 2, 'mario-pipes': 2, 'mario-pit': 3, 'mario-stairs-pit': 2, 'mario-cluster': 2 },
   8: { gauntlet: 3, 'spike-field': 2, 'spike-pit': 2, 'double-gap': 2, 'bridge-chain': 2, flyers: 2, pyramid: 1, platforms: 1, 'tatu-run': 3, 'bat-sky': 2, lifts: 3, tower: 2 },
 };
 
@@ -153,16 +158,16 @@ export function generateLevel(world: number, stage: number): LevelData {
     if (n === 2 || n === 5 || n === 7) lastKind = 'flat';
     // Evita repetir trechos perigosos em sequência e sempre intercala terreno firme.
     if (kind !== 'flat' && kind === lastKind) kind = 'flat';
-    if (lastKind === 'gap' || lastKind === 'bridge' || lastKind === 'double-gap' || lastKind === 'bridge-chain') kind = 'flat';
+    if (lastKind === 'gap' || lastKind === 'bridge' || lastKind === 'double-gap' || lastKind === 'bridge-chain' || lastKind === 'mario-pit') kind = 'flat';
     lastKind = kind;
     const start = x;
 
     if (kind === 'flat') {
-      const len = 9 + Math.floor(rand() * 5);
+      const len = 8 + Math.floor(rand() * 4);
       ground.push({ from: start, to: start + len - 1 });
       flatSpans.push({ from: start, to: start + len - 1 });
       if (rand() < 0.7) coins.push(...line(start + 2, start + 4 + Math.floor(rand() * 2), 8));
-      const count = 1 + Math.floor(rand() * (2 + difficulty * 3));
+      const count = 2 + Math.floor(rand() * (2 + difficulty * 3));
       for (let e = 0; e < count; e++) {
         enemies.push({ kind: pick(groundPool), x: start + 3 + Math.floor(rand() * (len - 6)), y: 8 });
       }
@@ -172,7 +177,7 @@ export function generateLevel(world: number, stage: number): LevelData {
       x = start + len;
     } else if (kind === 'gap') {
       const len = 8 + Math.floor(rand() * 3);
-      const gap = 2 + Math.floor(rand() * 2); // 2..3
+      const gap = 3 + (difficulty > 0.3 && rand() < 0.5 ? 1 : 0); // 3..4
       ground.push({ from: start, to: start + len - 1 });
       flatSpans.push({ from: start, to: start + len - 1 });
       coins.push({ x: start + len, y: 6 }, { x: start + len + 1, y: 5 }, { x: start + len + (gap > 2 ? 2 : 1), y: 6 });
@@ -290,6 +295,71 @@ export function generateLevel(world: number, stage: number): LevelData {
       flatSpans.push({ from: end, to: end + 5 });
       coins.push(...line(start + 9, start + 12, 7), ...line(mid + 5, mid + 8, 7));
       x = end + 6;
+    } else if (kind === 'mario-blocks') {
+      // Fileira clássica de ? e tijolos no alto, bichos andando embaixo e um bloco extra mais acima.
+      const len = 17;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      blocks.push(
+        { kind: 'brick', x: start + 4, y: 5 },
+        { kind: 'surprise', x: start + 5, y: 5, reward: 'coin' },
+        { kind: 'brick', x: start + 6, y: 5 },
+        { kind: 'surprise', x: start + 7, y: 5, reward: bonusReward(rand()) },
+        { kind: 'brick', x: start + 8, y: 5 },
+        { kind: 'surprise', x: start + 6, y: 2, reward: 'coin' },
+      );
+      for (const dx of [4, 8, 11, 14]) enemies.push({ kind: pick(groundPool), x: start + dx, y: 8 });
+      coins.push(...line(start + 4, start + 8, 4));
+      x = start + len;
+    } else if (kind === 'mario-pipes') {
+      // Canos de alturas diferentes em fila, com bicho no vão entre eles: pulos precisos e ritmo.
+      const len = 26;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (const [dx, h] of [[4, 2], [10, 3], [16, 2 + (rand() < 0.5 ? 1 : 0)], [22, 3]] as Array<[number, number]>) {
+        pipes.push({ x: start + dx, h });
+        coins.push({ x: start + dx, y: 8 - h }, { x: start + dx + 1, y: 8 - h });
+      }
+      for (const dx of [7, 13, 19]) enemies.push({ kind: pick(groundPool), x: start + dx, y: 8 });
+      x = start + len;
+    } else if (kind === 'mario-pit') {
+      // Abismo largo com tijolos flutuantes por cima; do outro lado, um bicho espera depois do pouso.
+      const gap = world === 1 && stage === 1 ? 3 : 4;
+      ground.push({ from: start, to: start + 7 });
+      flatSpans.push({ from: start, to: start + 7 });
+      const far = start + 8 + gap;
+      ground.push({ from: far, to: far + 9 });
+      flatSpans.push({ from: far, to: far + 9 });
+      blocks.push({ kind: 'brick', x: start + 9, y: 5 }, { kind: 'surprise', x: start + 10, y: 5, reward: 'coin' }, { kind: 'brick', x: start + 11, y: 5 });
+      coins.push(...line(start + 8, start + 8 + gap - 1, 3));
+      enemies.push({ kind: pick(groundPool), x: start + 4, y: 8 }, { kind: pick(groundPool), x: far + 7, y: 8 });
+      x = far + 10;
+    } else if (kind === 'mario-stairs-pit') {
+      // Escada que sobe, abismo no topo e escada que desce: só se passa com pulo em corrida.
+      const heights = [1, 2, 3, 4];
+      ground.push({ from: start, to: start + 9 });
+      flatSpans.push({ from: start, to: start + 4 });
+      heights.forEach((h, i) => {
+        for (let k = 1; k <= h; k++) blocks.push({ kind: 'stone', x: start + 6 + i, y: GROUND_ROW - k });
+      });
+      const down = start + 13;
+      ground.push({ from: down, to: down + 11 });
+      flatSpans.push({ from: down + 5, to: down + 11 });
+      heights.forEach((h, i) => {
+        for (let k = 1; k <= h; k++) blocks.push({ kind: 'stone', x: down + 3 - i, y: GROUND_ROW - k });
+      });
+      coins.push({ x: start + 10, y: 4 }, { x: start + 11, y: 3 }, { x: start + 12, y: 4 });
+      enemies.push({ kind: pick(groundPool), x: down + 9, y: 8 });
+      x = down + 12;
+    } else if (kind === 'mario-cluster') {
+      // Bando de bichos juntos: pise um, pule o outro. Nos mundos 2+ ainda tem um voador por cima.
+      const len = 15;
+      ground.push({ from: start, to: start + len - 1 });
+      flatSpans.push({ from: start, to: start + 2 });
+      for (const dx of [6, 7, 10, 12]) enemies.push({ kind: pick(groundPool), x: start + dx, y: 8 });
+      if (world >= 2) enemies.push({ kind: 'corvo-umbral', x: start + 9, y: 4 });
+      coins.push(...line(start + 3, start + 4, 8));
+      x = start + len;
     } else if (kind === 'flyers') {
       // Terreno limpo, mas o céu está cheio de corvos em alturas diferentes.
       // O primeiro corvo fica a 6 blocos da entrada: o patrulhamento (±3) não cobre o pouso do trecho anterior.
@@ -379,10 +449,12 @@ export function generateLevel(world: number, stage: number): LevelData {
 
   // Trecho final plano com a meta.
   const endStart = x;
-  ground.push({ from: endStart, to: endStart + 13 });
-  flatSpans.push({ from: endStart, to: endStart + 13 });
-  const goalX = endStart + 10;
-  const mainWidth = endStart + 14;
+  ground.push({ from: endStart, to: endStart + 14 });
+  flatSpans.push({ from: endStart, to: endStart + 14 });
+  // Escadaria final estilo Mario: sobe 8 degraus e a meta fica logo depois do topo.
+  for (let i = 0; i < 8; i++) for (let k = 1; k <= i + 1; k++) blocks.push({ kind: 'stone', x: endStart + 1 + i, y: GROUND_ROW - k });
+  const goalX = endStart + 11;
+  const mainWidth = endStart + 15;
 
   // Salas secretas depois do fim da fase: cada cano/porta tem a sua e a saída volta para perto da entrada.
   const rooms: LevelData['rooms'] = [];

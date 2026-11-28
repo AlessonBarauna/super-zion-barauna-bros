@@ -57,6 +57,6 @@ describe('TileGrid', () => {
   it('reconhece blocos e plataformas', () => {
     expect(grid.kindAt(8, 6)).toBe('surprise');
     expect(grid.kindAt(14, 6)).toBe('platform');
-    expect(grid.kindAt(113, 5)).toBe('stone');
+    expect(grid.kindAt(115, 5)).toBe('stone');
   });
 });
