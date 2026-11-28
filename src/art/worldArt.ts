@@ -405,7 +405,26 @@ function pitFill(ctx: Ctx): void {
   }
 }
 
+/** Moeda grande (34 px de lado): borda grossa, anel interno, estrela e brilho. */
 function coinFrame(ctx: Ctx, rx: number): void {
+  ctx.save();
+  ctx.scale(34 / 24, 34 / 24);
+  coinFrameSmall(ctx, rx);
+  ctx.restore();
+  if (rx > 5) {
+    // brilho diagonal
+    ctx.save();
+    ctx.translate(17, 17);
+    ctx.rotate(-0.6);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(-6.5, -4, 1.6, 4.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function coinFrameSmall(ctx: Ctx, rx: number): void {
   ellipse(ctx, 12, 12, rx, 10.4);
   fillStroke(ctx, PALETTE.douradoAurora, 2.2);
   if (rx > 5) {
@@ -730,7 +749,7 @@ export function createWorldTextures(scene: Phaser.Scene): void {
   }
   canvasTexture(scene, 'door-exit', 46, 86, exitDoor);
 
-  [10.4, 6.6, 2.6, 6.6].forEach((rx, i) => canvasTexture(scene, `coin-${i}`, 24, 24, (c) => coinFrame(c, rx)));
+  [10.4, 6.6, 2.6, 6.6].forEach((rx, i) => canvasTexture(scene, `coin-${i}`, 34, 34, (c) => coinFrame(c, rx)));
   canvasTexture(scene, 'heart-full', 32, 30, (c) => heartIcon(c, true));
   canvasTexture(scene, 'heart-empty', 32, 30, (c) => heartIcon(c, false));
 

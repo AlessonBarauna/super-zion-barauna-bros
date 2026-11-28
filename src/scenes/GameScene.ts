@@ -437,6 +437,7 @@ export class GameScene extends Phaser.Scene {
         hp: p.vitality.hp,
         maxHp: p.vitality.maxHp,
         power: p.powers.current,
+        timed: p.timed.id ? { id: p.timed.id, fraction: p.timed.fraction } : null,
         dead: p.dead,
       })),
     };
